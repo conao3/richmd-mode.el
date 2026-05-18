@@ -1,0 +1,9 @@
+;; Keg
+
+(source gnu melpa)
+
+(package
+ (richmd-mode
+  (recipe . (richmd-mode :fetcher github :repo "conao3/richmd-mode.el"))))
+
+(dev-dependency cort)
