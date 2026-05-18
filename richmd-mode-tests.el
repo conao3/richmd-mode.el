@@ -1,6 +1,6 @@
 ;;; richmd-mode-tests.el --- Test definitions for richmd-mode  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2024  Naoya Yamashita
+;; Copyright (C) 2026  Naoya Yamashita
 
 ;; Author: Naoya Yamashita <conao3@gmail.com>
 ;; URL: https://github.com/conao3/richmd-mode.el

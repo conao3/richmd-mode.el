@@ -1,24 +1,36 @@
-## test.yml
-
 name: Main workflow
+
 on:
-  push: {branches: [master]}
-  pull_request: {branches: [master]}
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
 
 jobs:
-  build:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: purcell/setup-emacs@master
+        with:
+          version: '30.2'
+      - uses: conao3/setup-keg@master
+      - name: Run lint
+        run: make lint
+
+  test:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         emacs_version:
-          - '29.4'
+          - '30.2'
           - 'snapshot'
         include:
           - emacs_version: 'snapshot'
             allow_failure: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: purcell/setup-emacs@master
         with:
           version: ${{ matrix.emacs_version }}
@@ -26,8 +38,9 @@ jobs:
 
       - name: Run tests
         if: matrix.allow_failure != true
-        run: 'make test'
+        run: make test
 
       - name: Run tests (allow failure)
         if: matrix.allow_failure == true
-        run: 'make test || true'
+        run: make test
+        continue-on-error: true

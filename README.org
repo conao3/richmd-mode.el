@@ -1,5 +1,5 @@
+#+title: richmd-mode.el
 #+author: conao3
-#+date: <2020-03-20 Fri>
 
 [[https://github.com/conao3/richmd-mode.el][https://raw.githubusercontent.com/conao3/files/master/blob/headers/png/richmd-mode.el.png]]
 [[https://github.com/conao3/richmd-mode.el/blob/master/LICENSE][https://img.shields.io/github/license/conao3/richmd-mode.el.svg?style=flat-square]]
@@ -52,27 +52,25 @@ We welcome PR!
 *** Require tools for testing
 - keg
   #+begin_src shell
-    cd ~/
-    hub clone conao3/keg .keg
+    git clone https://github.com/conao3/keg.el.git ~/.keg
     export PATH="$HOME/.keg/bin:$PATH"
   #+end_src
 
 *** Running test
 Below operation flow is recommended.
 #+begin_src shell
-  git branch [feature-branch]       # Create branch named [feature-branch]
-  git checkout [feature-branch]     # Checkout branch named [feature-branch]
+  git switch -c [feature-branch]    # Create and checkout branch named [feature-branch]
 
   # <edit loop>
-  emacs richmd-mode.el             # Edit something you want
+  emacs richmd-mode.el              # Edit something you want
 
   make test                         # Test richmd-mode
   git commit -am "brabra"           # Commit (auto-run test before commit)
   # </edit loop>
 
-  hub fork                          # Create fork at GitHub
+  gh repo fork                      # Create fork at GitHub
   git push [user] [feature-branch]  # Push feature-branch to your fork
-  hub pull-request                  # Create pull-request
+  gh pr create                      # Create pull-request
 #+end_src
 
 ** Migration

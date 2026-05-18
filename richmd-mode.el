@@ -1,11 +1,11 @@
 ;;; richmd-mode.el --- Rich rendering markdown buffer  -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2024  Naoya Yamashita
+;; Copyright (C) 2026  Naoya Yamashita
 
 ;; Author: Naoya Yamashita <conao3@gmail.com>
 ;; Version: 0.0.1
 ;; Keywords: convenience
-;; Package-Requires: ((emacs "26.1"))
+;; Package-Requires: ((emacs "30.2"))
 ;; URL: https://github.com/conao3/richmd-mode.el
 
 ;; This program is free software: you can redistribute it and/or modify
