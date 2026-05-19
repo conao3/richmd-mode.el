@@ -202,15 +202,23 @@ line-spacing area of adjacent lines."
   :type 'string
   :group 'richmd-mode)
 
-(defcustom richmd-mode-line-spacing 12
+(defcustom richmd-mode-line-spacing nil
   "Extra blank space inserted below each line while `richmd-mode' is active.
 
 Bound to the buffer-local variable `line-spacing' on activation.
 A positive integer N adds N pixels of empty space beneath every
 line.  A floating point number N adds N times the default frame
 line height of extra space.  Note that `line-spacing' only takes
-effect on graphic displays (see `display-graphic-p')."
-  :type '(choice (integer :tag "Pixels") (float :tag "Fraction"))
+effect on graphic displays (see `display-graphic-p').
+
+Defaults to nil: Emacs applies `line-spacing' uniformly to every
+line in the buffer with no reliable per-line override, so any
+positive value would also pull the table rows apart and break the
+box-drawing grid.  GitHub renders tables as a tight connected
+grid, so a tight buffer matches the reference more faithfully."
+  :type '(choice (const :tag "None" nil)
+                 (integer :tag "Pixels")
+                 (float :tag "Fraction"))
   :group 'richmd-mode)
 
 (defcustom richmd-mode-list-bullet-indent 2
