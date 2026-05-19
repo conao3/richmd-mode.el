@@ -293,6 +293,8 @@ joined."
 (defvar-local richmd-mode--had-local-word-wrap nil)
 (defvar-local richmd-mode--saved-truncate-lines nil)
 (defvar-local richmd-mode--had-local-truncate-lines nil)
+(defvar-local richmd-mode--saved-fringe-alist nil)
+(defvar-local richmd-mode--had-local-fringe-alist nil)
 (defvar-local richmd-mode--revealed-span nil)
 (defvar-local richmd-mode--revealed-markers nil)
 (defvar-local richmd-mode--code-block-regions nil)
@@ -875,9 +877,17 @@ that provides one."
     (setq richmd-mode--had-local-word-wrap (local-variable-p 'word-wrap)
           richmd-mode--saved-word-wrap word-wrap
           richmd-mode--had-local-truncate-lines (local-variable-p 'truncate-lines)
-          richmd-mode--saved-truncate-lines truncate-lines)
+          richmd-mode--saved-truncate-lines truncate-lines
+          richmd-mode--had-local-fringe-alist
+          (local-variable-p 'fringe-indicator-alist)
+          richmd-mode--saved-fringe-alist fringe-indicator-alist)
     (setq-local word-wrap t)
-    (setq-local truncate-lines nil))
+    (setq-local truncate-lines nil)
+    (setq-local fringe-indicator-alist
+                (cons '(continuation nil nil)
+                      (if (listp fringe-indicator-alist)
+                          fringe-indicator-alist
+                        (list fringe-indicator-alist)))))
   (richmd-mode--sync-code-family)
   (richmd-mode--sync-italic-family)
   (setq richmd-mode--body-cookie
@@ -898,6 +908,11 @@ that provides one."
   (if richmd-mode--had-local-truncate-lines
       (setq-local truncate-lines richmd-mode--saved-truncate-lines)
     (kill-local-variable 'truncate-lines))
+  (if richmd-mode--had-local-fringe-alist
+      (setq-local fringe-indicator-alist richmd-mode--saved-fringe-alist)
+    (kill-local-variable 'fringe-indicator-alist))
+  (setq richmd-mode--saved-fringe-alist nil
+        richmd-mode--had-local-fringe-alist nil)
   (setq richmd-mode--saved-line-spacing nil
         richmd-mode--had-local-line-spacing nil)
   (remove-from-invisibility-spec 'richmd-mode))
