@@ -22,13 +22,116 @@
 
 ;; Test definitions for `richmd-mode'.
 
-
+
 ;;; Code:
 
+(require 'cl-lib)
 (require 'cort)
 (require 'richmd-mode)
 
+(defun richmd-mode-tests--faces-in (buf-content)
+  "Return the set of richmd faces produced by `richmd-mode' over BUF-CONTENT."
+  (with-temp-buffer
+    (insert buf-content)
+    (richmd-mode 1)
+    (let (faces)
+      (dolist (ov (overlays-in (point-min) (point-max)))
+        (let ((face (overlay-get ov 'face)))
+          (when (and face (symbolp face)
+                     (string-prefix-p "richmd-mode-" (symbol-name face)))
+            (cl-pushnew face faces))))
+      (sort faces (lambda (a b) (string< (symbol-name a) (symbol-name b)))))))
 
-;; (provide 'richmd-mode-tests)
+(cort-deftest richmd-mode-heading-faces
+  '((:equal '(richmd-mode-heading-1-face)
+            (richmd-mode-tests--faces-in "# Hello\n"))
+    (:equal '(richmd-mode-heading-2-face)
+            (richmd-mode-tests--faces-in "## Hello\n"))
+    (:equal '(richmd-mode-heading-6-face)
+            (richmd-mode-tests--faces-in "###### Hello\n"))))
+
+(cort-deftest richmd-mode-inline-faces
+  '((:equal '(richmd-mode-bold-face)
+            (richmd-mode-tests--faces-in "before **bold** after\n"))
+    (:equal '(richmd-mode-italic-face)
+            (richmd-mode-tests--faces-in "before *italic* after\n"))
+    (:equal '(richmd-mode-strikethrough-face)
+            (richmd-mode-tests--faces-in "before ~~gone~~ after\n"))
+    (:equal '(richmd-mode-code-face)
+            (richmd-mode-tests--faces-in "before `code` after\n"))
+    (:equal '(richmd-mode-link-face)
+            (richmd-mode-tests--faces-in "see [docs](https://example.com)\n"))))
+
+(cort-deftest richmd-mode-adjacent-italic
+  '((:= 2
+        (with-temp-buffer
+          (insert "*a* *b*\n")
+          (richmd-mode 1)
+          (length (cl-remove-if-not
+                   (lambda (ov)
+                     (eq (overlay-get ov 'face) 'richmd-mode-italic-face))
+                   (overlays-in (point-min) (point-max))))))))
+
+(cort-deftest richmd-mode-code-block-faces
+  '((:equal '(richmd-mode-code-block-face)
+            (richmd-mode-tests--faces-in "```\nfoo\n```\n"))))
+
+(cort-deftest richmd-mode-list-bullet-display
+  '((:equal (concat (make-string richmd-mode-list-bullet-indent ?\s)
+                    (car richmd-mode-list-bullets))
+            (with-temp-buffer
+              (insert "- item\n")
+              (richmd-mode 1)
+              (let (display)
+                (dolist (ov (overlays-in (point-min) (point-max)))
+                  (let ((d (overlay-get ov 'display)))
+                    (when (stringp d) (setq display d))))
+                display)))))
+
+(defun richmd-mode-tests--marker-invisibility ()
+  "Return the sorted list of `invisible' values of marker overlays."
+  (let (vals)
+    (dolist (ov (overlays-in (point-min) (point-max)))
+      (when (overlay-get ov 'richmd-mode-marker)
+        (push (overlay-get ov 'invisible) vals)))
+    (sort vals (lambda (a b) (string< (format "%s" a) (format "%s" b))))))
+
+(cort-deftest richmd-mode-reveal-at-point
+  '((:equal '(nil nil)
+            (with-temp-buffer
+              (insert "x **bold** y\n")
+              (richmd-mode 1)
+              (goto-char 6)
+              (richmd-mode--reveal-at-point)
+              (richmd-mode-tests--marker-invisibility)))
+    (:equal '(richmd-mode richmd-mode)
+            (with-temp-buffer
+              (insert "x **bold** y\n")
+              (richmd-mode 1)
+              (goto-char 6)
+              (richmd-mode--reveal-at-point)
+              (goto-char (point-max))
+              (richmd-mode--reveal-at-point)
+              (richmd-mode-tests--marker-invisibility)))
+    (:equal '(richmd-mode richmd-mode)
+            (with-temp-buffer
+              (insert "x **bold** y\n")
+              (let ((richmd-mode-reveal-markup nil))
+                (richmd-mode 1)
+                (goto-char 6)
+                (richmd-mode--reveal-at-point)
+                (richmd-mode-tests--marker-invisibility))))))
+
+(cort-deftest richmd-mode-toggle-clears-overlays
+  '((:= 0
+        (with-temp-buffer
+          (insert "# Heading\n\n**bold** text and `code`.\n")
+          (richmd-mode 1)
+          (richmd-mode -1)
+          (length (cl-remove-if-not
+                   (lambda (ov) (overlay-get ov 'richmd-mode))
+                   (overlays-in (point-min) (point-max))))))))
+
+(provide 'richmd-mode-tests)
 
 ;;; richmd-mode-tests.el ends here
