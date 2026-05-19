@@ -128,10 +128,8 @@ line-spacing area of adjacent lines."
   :group 'richmd-mode)
 
 (defface richmd-mode-link-face
-  '((((background light)) :inherit variable-pitch :foreground "#0969da"
-     :underline (:color "#0969da" :style line :position t))
-    (((background dark))  :inherit variable-pitch :foreground "#2f81f7"
-     :underline (:color "#2f81f7" :style line :position t)))
+  '((((background light)) :inherit variable-pitch :foreground "#0969da")
+    (((background dark))  :inherit variable-pitch :foreground "#2f81f7"))
   "Face for links."
   :group 'richmd-mode)
 
@@ -161,9 +159,20 @@ line-spacing area of adjacent lines."
   :group 'richmd-mode)
 
 (defface richmd-mode-table-rule-face
-  '((((background light)) :inherit fixed-pitch :foreground "#d1d9e0")
+  '((((background light)) :inherit fixed-pitch :foreground "#d0d7de")
     (((background dark))  :inherit fixed-pitch :foreground "#3d444d"))
   "Face for the box-drawing borders of rendered tables."
+  :group 'richmd-mode)
+
+(defface richmd-mode-table-header-face
+  '((t :inherit fixed-pitch :weight bold))
+  "Face for the header row of rendered tables."
+  :group 'richmd-mode)
+
+(defface richmd-mode-table-row-face
+  '((((background light)) :inherit fixed-pitch :background "#f6f8fa")
+    (((background dark))  :inherit fixed-pitch :background "#161b22"))
+  "Face for the zebra-striped alternate body rows of rendered tables."
   :group 'richmd-mode)
 
 (defface richmd-mode-list-bullet-face
@@ -369,27 +378,30 @@ already-rendered content untouched."
                          (make-string (- gap l) ?\s))))
       (_ (concat str (make-string gap ?\s))))))
 
-(defun richmd-mode--table-render-row (cells aligns widths)
-  "Render data CELLS into a bordered string using ALIGNS and WIDTHS."
-  (let ((bar (propertize "│" 'face 'richmd-mode-table-rule-face)))
+(defun richmd-mode--table-render-row (cells aligns widths cellface)
+  "Render data CELLS with ALIGNS and WIDTHS, styled by CELLFACE."
+  (let ((bar (propertize "│" 'face (list 'richmd-mode-table-rule-face
+                                         cellface))))
     (concat bar
             (mapconcat
              (lambda (i)
-               (concat " "
-                       (richmd-mode--table-pad (or (nth i cells) "")
-                                               (nth i widths)
-                                               (nth i aligns))
-                       " "))
+               (propertize
+                (concat " "
+                        (richmd-mode--table-pad (or (nth i cells) "")
+                                                (nth i widths)
+                                                (nth i aligns))
+                        " ")
+                'face cellface))
              (number-sequence 0 (1- (length widths)))
              bar)
             bar)))
 
-(defun richmd-mode--table-render-rule (widths)
-  "Render the divider line for column WIDTHS."
+(defun richmd-mode--table-border (widths l m r)
+  "Build a horizontal table border for WIDTHS using L, M, R junctions."
   (propertize
-   (concat "├"
-           (mapconcat (lambda (w) (make-string (+ w 2) ?─)) widths "┼")
-           "┤")
+   (concat l
+           (mapconcat (lambda (w) (make-string (+ w 2) ?─)) widths m)
+           r)
    'face 'richmd-mode-table-rule-face))
 
 (defun richmd-mode--scan-tables (beg end)
@@ -440,16 +452,47 @@ already-rendered content untouched."
                                  (string-width (or (nth i cells) "")))))))
                 (push (cons (caar lines) (cdar (last lines)))
                       richmd-mode--table-regions)
-                (cl-loop
-                 for (lb . le) in lines
-                 for cells in rows
-                 do (richmd-mode--make-overlay
-                     lb le
-                     'face 'richmd-mode-table-face
-                     'display
-                     (if cells
-                         (richmd-mode--table-render-row cells aligns widths)
-                       (richmd-mode--table-render-rule widths)))))
+                (let ((nlines (length lines))
+                      (top (richmd-mode--table-border widths "┌" "┬" "┐"))
+                      (bottom (richmd-mode--table-border widths "└" "┴" "┘"))
+                      (tight '(line-spacing 0 line-height t))
+                      (idx 0)
+                      (body 0))
+                  (cl-loop
+                   for (lb . le) in lines
+                   for cells in rows
+                   do (let ((disp
+                             (cond
+                              ((null cells)
+                               (richmd-mode--table-border widths "├" "┼" "┤"))
+                              ((= idx 0)
+                               (richmd-mode--table-render-row
+                                cells aligns widths
+                                'richmd-mode-table-header-face))
+                              (t
+                               (prog1
+                                   (richmd-mode--table-render-row
+                                    cells aligns widths
+                                    (if (cl-oddp body)
+                                        'richmd-mode-table-row-face
+                                      'richmd-mode-table-face))
+                                 (setq body (1+ body)))))))
+                        (richmd-mode--make-overlay
+                         lb le
+                         'face 'richmd-mode-table-face
+                         'display disp
+                         'before-string
+                         (and (= idx 0)
+                              (apply #'propertize (concat top "\n")
+                                     'face 'richmd-mode-table-rule-face tight))
+                         'after-string
+                         (and (= idx (1- nlines))
+                              (apply #'propertize (concat "\n" bottom)
+                                     'face 'richmd-mode-table-rule-face tight)))
+                        (when (< le (point-max))
+                          (apply #'richmd-mode--make-overlay le (1+ le)
+                                 'face 'default tight))
+                        (setq idx (1+ idx))))))
             (goto-char hend)))))))
 
 (defun richmd-mode--fontify-headings (beg end)
