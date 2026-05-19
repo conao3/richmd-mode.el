@@ -165,14 +165,28 @@ line-spacing area of adjacent lines."
   :group 'richmd-mode)
 
 (defface richmd-mode-table-header-face
-  '((t :inherit fixed-pitch :weight bold))
-  "Face for the header row of rendered tables."
+  '((((background light)) :inherit fixed-pitch :weight bold
+     :overline "#d0d7de")
+    (((background dark))  :inherit fixed-pitch :weight bold
+     :overline "#3d444d"))
+  "Face for the header row of rendered tables.
+The `:overline' draws the table's top edge without inserting an
+extra display line, so it stays aligned under
+`display-line-numbers-mode'."
   :group 'richmd-mode)
 
 (defface richmd-mode-table-row-face
   '((((background light)) :inherit fixed-pitch :background "#f6f8fa")
     (((background dark))  :inherit fixed-pitch :background "#161b22"))
   "Face for the zebra-striped alternate body rows of rendered tables."
+  :group 'richmd-mode)
+
+(defface richmd-mode-table-bottom-face
+  '((((background light)) :underline "#d0d7de")
+    (((background dark))  :underline "#3d444d"))
+  "Face overlaid on the last table row to draw the bottom edge.
+Implemented as `:underline' so it adds no display line and keeps
+its alignment under `display-line-numbers-mode'."
   :group 'richmd-mode)
 
 (defface richmd-mode-list-bullet-face
@@ -411,10 +425,10 @@ already-rendered content untouched."
                          (make-string (- gap l) ?\s))))
       (_ (concat str (make-string gap ?\s))))))
 
-(defun richmd-mode--table-render-row (cells aligns widths cellface)
-  "Render data CELLS with ALIGNS and WIDTHS, styled by CELLFACE."
-  (let ((bar (propertize "│" 'face (list 'richmd-mode-table-rule-face
-                                         cellface)))
+(defun richmd-mode--table-render-row (cells aligns widths cellfaces)
+  "Render data CELLS with ALIGNS and WIDTHS, styled by face list CELLFACES."
+  (let ((bar (propertize "│" 'face (cons 'richmd-mode-table-rule-face
+                                         cellfaces)))
         (pad (make-string richmd-mode-table-cell-padding ?\s)))
     (concat bar
             (mapconcat
@@ -425,7 +439,7 @@ already-rendered content untouched."
                                                 (nth i widths)
                                                 (nth i aligns))
                         pad)
-                'face cellface))
+                'face cellfaces))
              (number-sequence 0 (1- (length widths)))
              bar)
             bar)))
@@ -489,43 +503,36 @@ already-rendered content untouched."
                                  (string-width (or (nth i cells) "")))))))
                 (push (cons (caar lines) (cdar (last lines)))
                       richmd-mode--table-regions)
-                (let ((nlines (length lines))
-                      (top (richmd-mode--table-border widths "┌" "┬" "┐"))
-                      (bottom (richmd-mode--table-border widths "└" "┴" "┘"))
-                      (tight '(line-spacing 0 line-height t))
+                (let ((lastrow (cl-loop for c in rows for k from 0
+                                        when c maximize k))
                       (idx 0)
                       (body 0))
                   (cl-loop
                    for (lb . le) in lines
                    for cells in rows
-                   do (let ((disp
-                             (cond
-                              ((null cells)
-                               (richmd-mode--table-border widths "├" "┼" "┤"))
-                              ((= idx 0)
-                               (richmd-mode--table-render-row
-                                cells aligns widths
-                                'richmd-mode-table-header-face))
-                              (t
-                               (prog1
-                                   (richmd-mode--table-render-row
-                                    cells aligns widths
-                                    (if (cl-oddp body)
-                                        'richmd-mode-table-row-face
-                                      'richmd-mode-table-face))
-                                 (setq body (1+ body)))))))
+                   do (let* ((base
+                              (cond
+                               ((null cells) nil)
+                               ((= idx 0) '(richmd-mode-table-header-face))
+                               (t (prog1
+                                      (if (cl-oddp body)
+                                          '(richmd-mode-table-row-face)
+                                        '(richmd-mode-table-face))
+                                    (setq body (1+ body))))))
+                             (faces (if (and base (= idx lastrow))
+                                        (cons 'richmd-mode-table-bottom-face
+                                              base)
+                                      base))
+                             (disp
+                              (if cells
+                                  (richmd-mode--table-render-row
+                                   cells aligns widths faces)
+                                (richmd-mode--table-border
+                                 widths "├" "┼" "┤"))))
                         (richmd-mode--make-overlay
                          lb le
                          'face 'richmd-mode-table-face
-                         'display disp
-                         'before-string
-                         (and (= idx 0)
-                              (apply #'propertize (concat top "\n")
-                                     'face 'richmd-mode-table-rule-face tight))
-                         'after-string
-                         (and (= idx (1- nlines))
-                              (apply #'propertize (concat "\n" bottom)
-                                     'face 'richmd-mode-table-rule-face tight)))
+                         'display disp)
                         (when (< le (point-max))
                           (put-text-property le (1+ le) 'line-spacing 0)
                           (put-text-property le (1+ le) 'line-height t))
