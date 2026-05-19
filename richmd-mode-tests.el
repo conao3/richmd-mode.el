@@ -147,6 +147,29 @@
             (richmd-mode-tests--table-displays
              "this | is not | a table\n"))))
 
+(cort-deftest richmd-mode-reflow-paragraphs
+  '((:= 1
+        (with-temp-buffer
+          (insert "and a\n[link](https://example.com).\n")
+          (richmd-mode 1)
+          (length (cl-remove-if-not
+                   (lambda (ov) (equal (overlay-get ov 'display) " "))
+                   (overlays-in (point-min) (point-max))))))
+    (:= 0
+        (with-temp-buffer
+          (insert "para one\n\npara two\n")
+          (richmd-mode 1)
+          (length (cl-remove-if-not
+                   (lambda (ov) (equal (overlay-get ov 'display) " "))
+                   (overlays-in (point-min) (point-max))))))
+    (:= 0
+        (with-temp-buffer
+          (insert "- item one\n- item two\n")
+          (richmd-mode 1)
+          (length (cl-remove-if-not
+                   (lambda (ov) (equal (overlay-get ov 'display) " "))
+                   (overlays-in (point-min) (point-max))))))))
+
 (cort-deftest richmd-mode-toggle-clears-overlays
   '((:= 0
         (with-temp-buffer

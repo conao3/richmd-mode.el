@@ -258,7 +258,25 @@ and they are hidden once point leaves."
   :type 'boolean
   :group 'richmd-mode)
 
+(defcustom richmd-mode-reflow-paragraphs t
+  "When non-nil, render soft line breaks inside a paragraph as spaces.
+
+CommonMark and GitHub collapse a single newline within a
+paragraph into a space and reflow the text to the container
+width.  With this enabled `richmd-mode' overlays such intra-
+paragraph newlines with a space and turns on word wrapping, so a
+hard-wrapped Markdown source still displays as flowing paragraphs
+instead of breaking mid-sentence.  Block boundaries (blank lines,
+headings, lists, blockquotes, tables, fenced code) are never
+joined."
+  :type 'boolean
+  :group 'richmd-mode)
+
 (defvar-local richmd-mode--overlays nil)
+(defvar-local richmd-mode--saved-word-wrap nil)
+(defvar-local richmd-mode--had-local-word-wrap nil)
+(defvar-local richmd-mode--saved-truncate-lines nil)
+(defvar-local richmd-mode--had-local-truncate-lines nil)
 (defvar-local richmd-mode--revealed-span nil)
 (defvar-local richmd-mode--revealed-markers nil)
 (defvar-local richmd-mode--code-block-regions nil)
@@ -652,6 +670,39 @@ already-rendered content untouched."
                                   (match-end 1) (match-end 0)
                                   'richmd-mode-code-face)))))
 
+(defun richmd-mode--paragraph-line-p (lb le)
+  "Return non-nil if the line LB..LE is plain paragraph prose.
+A paragraph line is non-blank, outside code blocks and tables,
+and does not start a block construct."
+  (let ((s (buffer-substring-no-properties lb le)))
+    (and (not (richmd-mode--in-code-block-p lb))
+         (string-match-p "[^ \t]" s)
+         (not (string-match-p
+               (concat "\\`[ \t]*\\(?:#\\{1,6\\}[ \t]\\|>\\|[-*+][ \t]"
+                       "\\|[0-9]+\\.[ \t]\\||\\|```"
+                       "\\|\\(?:[-*_][ \t]*\\)\\{3,\\}[ \t]*\\'\\)")
+               s)))))
+
+(defun richmd-mode--reflow-paragraphs (beg end)
+  "Render single intra-paragraph newlines between BEG and END as spaces."
+  (when richmd-mode-reflow-paragraphs
+    (save-excursion
+      (goto-char beg)
+      (while (and (< (point) end) (not (eobp)))
+        (let ((lb (line-beginning-position))
+              (le (line-end-position)))
+          (when (and (< le end)
+                     (eq (char-after le) ?\n)
+                     (richmd-mode--paragraph-line-p lb le)
+                     (not (string-match-p
+                           "  \\'" (buffer-substring-no-properties lb le)))
+                     (save-excursion
+                       (goto-char (1+ le))
+                       (richmd-mode--paragraph-line-p
+                        (line-beginning-position) (line-end-position))))
+            (richmd-mode--make-overlay le (1+ le) 'display " ")))
+        (forward-line 1)))))
+
 (defun richmd-mode--neutralize-line-spacing (beg end)
   "Force every newline outside code blocks to render with the default face.
 
@@ -733,6 +784,7 @@ the following line."
     (richmd-mode--fontify-strikethrough (point-min) (point-max))
     (richmd-mode--fontify-inline-code (point-min) (point-max))
     (richmd-mode--fontify-links (point-min) (point-max))
+    (richmd-mode--reflow-paragraphs (point-min) (point-max))
     (richmd-mode--neutralize-line-spacing (point-min) (point-max)))
   (setq richmd-mode--revealed-span nil
         richmd-mode--revealed-markers nil)
@@ -769,6 +821,13 @@ proportional family."
         (local-variable-p 'line-spacing))
   (setq richmd-mode--saved-line-spacing line-spacing)
   (setq-local line-spacing richmd-mode-line-spacing)
+  (when richmd-mode-reflow-paragraphs
+    (setq richmd-mode--had-local-word-wrap (local-variable-p 'word-wrap)
+          richmd-mode--saved-word-wrap word-wrap
+          richmd-mode--had-local-truncate-lines (local-variable-p 'truncate-lines)
+          richmd-mode--saved-truncate-lines truncate-lines)
+    (setq-local word-wrap t)
+    (setq-local truncate-lines nil))
   (richmd-mode--sync-code-family)
   (setq richmd-mode--body-cookie
         (face-remap-add-relative 'default 'richmd-mode-body-face)))
@@ -781,6 +840,12 @@ proportional family."
   (if richmd-mode--had-local-line-spacing
       (setq-local line-spacing richmd-mode--saved-line-spacing)
     (kill-local-variable 'line-spacing))
+  (if richmd-mode--had-local-word-wrap
+      (setq-local word-wrap richmd-mode--saved-word-wrap)
+    (kill-local-variable 'word-wrap))
+  (if richmd-mode--had-local-truncate-lines
+      (setq-local truncate-lines richmd-mode--saved-truncate-lines)
+    (kill-local-variable 'truncate-lines))
   (setq richmd-mode--saved-line-spacing nil
         richmd-mode--had-local-line-spacing nil)
   (remove-from-invisibility-spec 'richmd-mode))
