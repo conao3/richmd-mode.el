@@ -41,23 +41,25 @@
   :group 'richmd-mode)
 
 (defface richmd-mode-heading-1-face
-  '((((background light)) :inherit (variable-pitch outline-1)
-     :height 2.0 :weight bold
-     :underline (:color "#d1d9e0" :style line :position 6))
-    (((background dark))  :inherit (variable-pitch outline-1)
-     :height 2.0 :weight bold
-     :underline (:color "#3d444d" :style line :position 6)))
+  '((t :inherit (variable-pitch outline-1) :height 2.0 :weight bold))
   "Face for level-1 headings."
   :group 'richmd-mode)
 
 (defface richmd-mode-heading-2-face
-  '((((background light)) :inherit (variable-pitch outline-2)
-     :height 1.5 :weight bold
-     :underline (:color "#d1d9e0" :style line :position 6))
-    (((background dark))  :inherit (variable-pitch outline-2)
-     :height 1.5 :weight bold
-     :underline (:color "#3d444d" :style line :position 6)))
+  '((t :inherit (variable-pitch outline-2) :height 1.5 :weight bold))
   "Face for level-2 headings."
+  :group 'richmd-mode)
+
+(defface richmd-mode-heading-rule-face
+  '((((background light)) :overline "#afb8c1")
+    (((background dark))  :overline "#6e7781"))
+  "Face drawing the bottom rule under level-1 and level-2 headings.
+GitHub separates the heading from its rule with padding; the rule
+is rendered on the blank line that follows the heading (one
+buffer line, so it stays aligned under
+`display-line-numbers-mode') rather than as a glyph underline,
+which would collide with the descenders of the large heading
+font."
   :group 'richmd-mode)
 
 (defface richmd-mode-heading-3-face
@@ -550,7 +552,25 @@ already-rendered content untouched."
            'after-string
            (propertize " "
                        'face face
-                       'display '(space :align-to right))))))))
+                       'display '(space :align-to right)))
+          (when (<= level 2)
+            (save-excursion
+              (goto-char eol)
+              (when (and (< (point) (point-max))
+                         (eq (char-after) ?\n))
+                (forward-line 1)
+                (let ((bl (line-beginning-position))
+                      (el (line-end-position)))
+                  (when (and (= bl el) (< el (point-max))
+                             (not (richmd-mode--in-code-block-p bl)))
+                    (richmd-mode--make-overlay
+                     el (1+ el)
+                     'display
+                     (concat (propertize
+                              " "
+                              'face 'richmd-mode-heading-rule-face
+                              'display '(space :align-to right))
+                             "\n"))))))))))))
 
 (defun richmd-mode--fontify-horizontal-rule (beg end)
   "Fontify markdown horizontal rules between BEG and END."
