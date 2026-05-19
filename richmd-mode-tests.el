@@ -123,24 +123,30 @@
                 (richmd-mode-tests--marker-invisibility))))))
 
 (defun richmd-mode-tests--table-displays (content)
-  "Return the display strings produced for table CONTENT, top to bottom."
+  "Return the lines of the single table display string for CONTENT."
   (with-temp-buffer
     (insert content)
     (richmd-mode 1)
-    (let (rows)
+    (let (found)
       (dolist (ov (overlays-in (point-min) (point-max)))
         (let ((d (overlay-get ov 'display)))
-          (when (and (stringp d) (string-match-p "[│├]" d))
-            (push (cons (overlay-start ov) d) rows))))
-      (mapcar #'cdr (sort rows (lambda (a b) (< (car a) (car b))))))))
+          (when (and (stringp d) (string-match-p "[┌│├└]" d))
+            (setq found d))))
+      (and found (split-string found "\n")))))
 
 (cort-deftest richmd-mode-table-render
-  '((:equal '("│  Name   │  Age  │"
+  '((:equal '("┌─────────┬───────┐"
+              "│  Name   │  Age  │"
               "├─────────┼───────┤"
-              "│  Alice  │  30   │")
+              "│  Alice  │  30   │"
+              "└─────────┴───────┘")
             (richmd-mode-tests--table-displays
              "| Name | Age |\n| --- | --- |\n| Alice | 30 |\n"))
-    (:equal '("│    n  │" "├───────┤" "│  100  │")
+    (:equal '("┌───────┐"
+              "│    n  │"
+              "├───────┤"
+              "│  100  │"
+              "└───────┘")
             (richmd-mode-tests--table-displays
              "| n |\n| --: |\n| 100 |\n"))
     (:equal nil
