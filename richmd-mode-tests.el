@@ -72,6 +72,16 @@
                      (eq (overlay-get ov 'face) 'richmd-mode-italic-face))
                    (overlays-in (point-min) (point-max))))))))
 
+(cort-deftest richmd-mode-intraword-underscore
+  '((:equal nil
+            (richmd-mode-tests--faces-in "snake_case_name\n"))
+    (:equal nil
+            (richmd-mode-tests--faces-in "foo_bar_baz path/to_some_file\n"))
+    (:equal '(richmd-mode-italic-face)
+            (richmd-mode-tests--faces-in "a _real italic_ word\n"))
+    (:equal '(richmd-mode-italic-face)
+            (richmd-mode-tests--faces-in "(_paren_) and *star* too\n"))))
+
 (cort-deftest richmd-mode-code-block-faces
   '((:equal '(richmd-mode-code-block-face)
             (richmd-mode-tests--faces-in "```\nfoo\n```\n"))))

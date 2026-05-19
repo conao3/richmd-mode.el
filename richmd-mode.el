@@ -640,7 +640,12 @@ already-rendered content untouched."
             "\\(?:^\\|[^*_]\\)\\([*_]\\)\\([^*_\n]+?\\)\\1\\(?:[^*_]\\|$\\)"
             end t)
       (goto-char (1+ (match-end 2)))
-      (unless (richmd-mode--in-code-block-p (match-beginning 1))
+      (unless (or (richmd-mode--in-code-block-p (match-beginning 1))
+                  (and (eq (char-after (match-beginning 1)) ?_)
+                       (let ((before (char-before (match-beginning 1)))
+                             (after (char-after (1+ (match-end 2)))))
+                         (or (and before (eq (char-syntax before) ?w))
+                             (and after (eq (char-syntax after) ?w))))))
         (richmd-mode--make-inline (match-beginning 1) (match-end 1)
                                   (match-beginning 2) (match-end 2)
                                   (match-end 2) (1+ (match-end 2))
