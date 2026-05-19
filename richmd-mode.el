@@ -237,8 +237,11 @@ renders Markdown at relative to a typical Emacs default of 13px."
   :type 'number
   :group 'richmd-mode)
 
-(defcustom richmd-mode-list-bullet-indent 2
-  "Number of spaces injected before unordered list bullets for indentation."
+(defcustom richmd-mode-list-bullet-indent 4
+  "Number of spaces injected before unordered list bullets for indentation.
+GitHub indents lists by roughly 2em; four columns approximates
+that.  The hanging indent of wrapped item lines tracks this
+value, so deeper bullets keep their continuation aligned."
   :type 'integer
   :group 'richmd-mode)
 
