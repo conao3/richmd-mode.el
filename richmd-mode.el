@@ -413,22 +413,25 @@ already-rendered content untouched."
 
 (defun richmd-mode--table-render-row (cells aligns widths cellface)
   "Render data CELLS with ALIGNS and WIDTHS, styled by CELLFACE."
-  (let ((bar (propertize "│" 'face (list 'richmd-mode-table-rule-face
-                                         cellface)))
-        (pad (make-string richmd-mode-table-cell-padding ?\s)))
-    (concat bar
-            (mapconcat
-             (lambda (i)
-               (propertize
-                (concat pad
-                        (richmd-mode--table-pad (or (nth i cells) "")
-                                                (nth i widths)
-                                                (nth i aligns))
-                        pad)
-                'face cellface))
-             (number-sequence 0 (1- (length widths)))
-             bar)
-            bar)))
+  (let* ((pad (make-string richmd-mode-table-cell-padding ?\s))
+         (s (concat "│"
+                    (mapconcat
+                     (lambda (i)
+                       (concat pad
+                               (richmd-mode--table-pad (or (nth i cells) "")
+                                                       (nth i widths)
+                                                       (nth i aligns))
+                               pad))
+                     (number-sequence 0 (1- (length widths)))
+                     "│")
+                    "│")))
+    (put-text-property 0 (length s) 'face cellface s)
+    (let ((i 0))
+      (while (setq i (string-search "│" s i))
+        (put-text-property i (1+ i) 'face
+                           (list 'richmd-mode-table-rule-face cellface) s)
+        (setq i (1+ i))))
+    s))
 
 (defun richmd-mode--table-border (widths l m r)
   "Build a horizontal table border for WIDTHS using L, M, R junctions."
