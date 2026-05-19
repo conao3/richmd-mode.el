@@ -231,6 +231,13 @@ grid, so a tight buffer matches the reference more faithfully."
   :type 'integer
   :group 'richmd-mode)
 
+(defcustom richmd-mode-table-cell-padding 2
+  "Number of blank columns inserted on each side of a table cell.
+GitHub renders table cells with roomy horizontal padding; two
+fixed-pitch columns approximate that better than a single one."
+  :type 'integer
+  :group 'richmd-mode)
+
 (defcustom richmd-mode-table t
   "When non-nil, render GFM pipe tables with aligned box-drawing borders.
 
@@ -389,16 +396,17 @@ already-rendered content untouched."
 (defun richmd-mode--table-render-row (cells aligns widths cellface)
   "Render data CELLS with ALIGNS and WIDTHS, styled by CELLFACE."
   (let ((bar (propertize "│" 'face (list 'richmd-mode-table-rule-face
-                                         cellface))))
+                                         cellface)))
+        (pad (make-string richmd-mode-table-cell-padding ?\s)))
     (concat bar
             (mapconcat
              (lambda (i)
                (propertize
-                (concat " "
+                (concat pad
                         (richmd-mode--table-pad (or (nth i cells) "")
                                                 (nth i widths)
                                                 (nth i aligns))
-                        " ")
+                        pad)
                 'face cellface))
              (number-sequence 0 (1- (length widths)))
              bar)
@@ -408,7 +416,10 @@ already-rendered content untouched."
   "Build a horizontal table border for WIDTHS using L, M, R junctions."
   (propertize
    (concat l
-           (mapconcat (lambda (w) (make-string (+ w 2) ?─)) widths m)
+           (mapconcat
+            (lambda (w)
+              (make-string (+ w (* 2 richmd-mode-table-cell-padding)) ?─))
+            widths m)
            r)
    'face 'richmd-mode-table-rule-face))
 

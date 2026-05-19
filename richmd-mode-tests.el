@@ -135,12 +135,12 @@
       (mapcar #'cdr (sort rows (lambda (a b) (< (car a) (car b))))))))
 
 (cort-deftest richmd-mode-table-render
-  '((:equal '("│ Name  │ Age │"
-              "├───────┼─────┤"
-              "│ Alice │ 30  │")
+  '((:equal '("│  Name   │  Age  │"
+              "├─────────┼───────┤"
+              "│  Alice  │  30   │")
             (richmd-mode-tests--table-displays
              "| Name | Age |\n| --- | --- |\n| Alice | 30 |\n"))
-    (:equal '("│   n │" "├─────┤" "│ 100 │")
+    (:equal '("│    n  │" "├───────┤" "│  100  │")
             (richmd-mode-tests--table-displays
              "| n |\n| --: |\n| 100 |\n"))
     (:equal nil
