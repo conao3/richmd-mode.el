@@ -155,6 +155,17 @@ line-spacing area of adjacent lines."
   "Face for horizontal rules."
   :group 'richmd-mode)
 
+(defface richmd-mode-table-face
+  '((t :inherit fixed-pitch))
+  "Face for rendered Markdown tables."
+  :group 'richmd-mode)
+
+(defface richmd-mode-table-rule-face
+  '((((background light)) :inherit fixed-pitch :foreground "#d1d9e0")
+    (((background dark))  :inherit fixed-pitch :foreground "#3d444d"))
+  "Face for the box-drawing borders of rendered tables."
+  :group 'richmd-mode)
+
 (defface richmd-mode-list-bullet-face
   '((((background light)) :inherit variable-pitch :foreground "#59636e")
     (((background dark))  :inherit variable-pitch :foreground "#8b949e"))
@@ -203,6 +214,16 @@ effect on graphic displays (see `display-graphic-p')."
   :type 'integer
   :group 'richmd-mode)
 
+(defcustom richmd-mode-table t
+  "When non-nil, render GFM pipe tables with aligned box-drawing borders.
+
+Imported from the `org-modern' Org rich-display library, whose
+table beautification replaces the ASCII pipes and dashes with
+box-drawing glyphs; here columns are additionally padded so they
+line up under a fixed-pitch face."
+  :type 'boolean
+  :group 'richmd-mode)
+
 (defcustom richmd-mode-reveal-markup t
   "When non-nil, reveal the hidden markup of the inline element at point.
 
@@ -217,6 +238,7 @@ and they are hidden once point leaves."
 (defvar-local richmd-mode--revealed-span nil)
 (defvar-local richmd-mode--revealed-markers nil)
 (defvar-local richmd-mode--code-block-regions nil)
+(defvar-local richmd-mode--table-regions nil)
 (defvar-local richmd-mode--saved-line-spacing nil)
 (defvar-local richmd-mode--had-local-line-spacing nil)
 (defvar-local richmd-mode--body-cookie nil)
@@ -276,10 +298,13 @@ CB..CE the visible content shown with FACE plus CONTENT-PROPS."
       (delete-overlay ov))))
 
 (defun richmd-mode--in-code-block-p (pos)
-  "Return non-nil if POS lies inside a known fenced code block."
+  "Return non-nil if POS lies inside a fenced code block or a table.
+Inline fontifiers skip such regions, leaving their verbatim or
+already-rendered content untouched."
   (cl-some (lambda (region)
              (and (>= pos (car region)) (< pos (cdr region))))
-           richmd-mode--code-block-regions))
+           (append richmd-mode--code-block-regions
+                   richmd-mode--table-regions)))
 
 (defun richmd-mode--scan-code-blocks (beg end)
   "Detect fenced code blocks in BEG..END and overlay them."
@@ -311,6 +336,121 @@ CB..CE the visible content shown with FACE plus CONTENT-PROPS."
                                        'wrap-prefix
                                        (propertize margin 'face 'richmd-mode-code-block-face))
             (richmd-mode--make-overlay body-end fence-end 'invisible 'richmd-mode)))))))
+
+(defun richmd-mode--table-cells (line)
+  "Split a Markdown table LINE into a list of trimmed cell strings."
+  (let ((s (string-trim line)))
+    (when (string-prefix-p "|" s) (setq s (substring s 1)))
+    (when (string-suffix-p "|" s) (setq s (substring s 0 -1)))
+    (mapcar #'string-trim (split-string s "|"))))
+
+(defun richmd-mode--table-delimiter-p (line)
+  "Return non-nil if LINE is a GFM table delimiter row."
+  (let ((cells (richmd-mode--table-cells line)))
+    (and cells
+         (string-match-p "|" line)
+         (cl-every (lambda (c) (string-match-p "\\`:?-+:?\\'" c)) cells))))
+
+(defun richmd-mode--table-align (cell)
+  "Return the alignment symbol encoded by delimiter CELL."
+  (let ((l (string-prefix-p ":" cell))
+        (r (string-suffix-p ":" cell)))
+    (cond ((and l r) 'center)
+          (r 'right)
+          (t 'left))))
+
+(defun richmd-mode--table-pad (str width align)
+  "Pad STR to WIDTH display columns according to ALIGN."
+  (let ((gap (max 0 (- width (string-width str)))))
+    (pcase align
+      ('right (concat (make-string gap ?\s) str))
+      ('center (let ((l (/ gap 2)))
+                 (concat (make-string l ?\s) str
+                         (make-string (- gap l) ?\s))))
+      (_ (concat str (make-string gap ?\s))))))
+
+(defun richmd-mode--table-render-row (cells aligns widths)
+  "Render data CELLS into a bordered string using ALIGNS and WIDTHS."
+  (let ((bar (propertize "│" 'face 'richmd-mode-table-rule-face)))
+    (concat bar
+            (mapconcat
+             (lambda (i)
+               (concat " "
+                       (richmd-mode--table-pad (or (nth i cells) "")
+                                               (nth i widths)
+                                               (nth i aligns))
+                       " "))
+             (number-sequence 0 (1- (length widths)))
+             bar)
+            bar)))
+
+(defun richmd-mode--table-render-rule (widths)
+  "Render the divider line for column WIDTHS."
+  (propertize
+   (concat "├"
+           (mapconcat (lambda (w) (make-string (+ w 2) ?─)) widths "┼")
+           "┤")
+   'face 'richmd-mode-table-rule-face))
+
+(defun richmd-mode--scan-tables (beg end)
+  "Detect GFM pipe tables in BEG..END and render them with box borders."
+  (setq richmd-mode--table-regions nil)
+  (when richmd-mode-table
+    (save-excursion
+      (goto-char beg)
+      (while (re-search-forward "^[ \t]*\\(|[^\n]*\\)$" end t)
+        (let ((hbeg (line-beginning-position))
+              (hend (line-end-position))
+              (header (match-string-no-properties 1)))
+          (forward-line 1)
+          (if (and (< (point) end)
+                   (not (richmd-mode--in-code-block-p hbeg))
+                   (richmd-mode--table-delimiter-p
+                    (buffer-substring-no-properties
+                     (line-beginning-position) (line-end-position))))
+              (let* ((sep-cells (richmd-mode--table-cells
+                                 (buffer-substring-no-properties
+                                  (line-beginning-position)
+                                  (line-end-position))))
+                     (ncols (length sep-cells))
+                     (aligns (mapcar #'richmd-mode--table-align sep-cells))
+                     (lines (list (cons hbeg hend)))
+                     (rows (list (richmd-mode--table-cells header)))
+                     (widths (make-list ncols 0)))
+                (push (cons (line-beginning-position) (line-end-position))
+                      lines)
+                (push nil rows)
+                (forward-line 1)
+                (while (and (< (point) end)
+                            (looking-at "^[ \t]*|[^\n]*$"))
+                  (push (cons (line-beginning-position) (line-end-position))
+                        lines)
+                  (push (richmd-mode--table-cells
+                         (buffer-substring-no-properties
+                          (line-beginning-position) (line-end-position)))
+                        rows)
+                  (forward-line 1))
+                (setq lines (nreverse lines)
+                      rows (nreverse rows))
+                (dolist (cells rows)
+                  (when cells
+                    (dotimes (i ncols)
+                      (setf (nth i widths)
+                            (max (nth i widths)
+                                 (string-width (or (nth i cells) "")))))))
+                (push (cons (caar lines) (cdar (last lines)))
+                      richmd-mode--table-regions)
+                (cl-loop
+                 for (lb . le) in lines
+                 for cells in rows
+                 do (richmd-mode--make-overlay
+                     lb le
+                     'face 'richmd-mode-table-face
+                     'display
+                     (if cells
+                         (richmd-mode--table-render-row cells aligns widths)
+                       (richmd-mode--table-render-rule widths)))))
+            (goto-char hend)))))))
 
 (defun richmd-mode--fontify-headings (beg end)
   "Fontify markdown ATX headings between BEG and END."
@@ -517,6 +657,7 @@ the following line."
   (with-silent-modifications
     (richmd-mode--clear-overlays (point-min) (point-max))
     (richmd-mode--scan-code-blocks (point-min) (point-max))
+    (richmd-mode--scan-tables (point-min) (point-max))
     (richmd-mode--fontify-headings (point-min) (point-max))
     (richmd-mode--fontify-horizontal-rule (point-min) (point-max))
     (richmd-mode--fontify-quotes (point-min) (point-max))
@@ -598,7 +739,8 @@ proportional family."
       (setq richmd-mode--refresh-timer nil))
     (with-silent-modifications
       (richmd-mode--clear-overlays (point-min) (point-max)))
-    (setq richmd-mode--code-block-regions nil)
+    (setq richmd-mode--code-block-regions nil
+          richmd-mode--table-regions nil)
     (richmd-mode--exit-display)))
 
 (provide 'richmd-mode)

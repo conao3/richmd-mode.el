@@ -122,6 +122,31 @@
                 (richmd-mode--reveal-at-point)
                 (richmd-mode-tests--marker-invisibility))))))
 
+(defun richmd-mode-tests--table-displays (content)
+  "Return the display strings produced for table CONTENT, top to bottom."
+  (with-temp-buffer
+    (insert content)
+    (richmd-mode 1)
+    (let (rows)
+      (dolist (ov (overlays-in (point-min) (point-max)))
+        (let ((d (overlay-get ov 'display)))
+          (when (and (stringp d) (string-match-p "[│├]" d))
+            (push (cons (overlay-start ov) d) rows))))
+      (mapcar #'cdr (sort rows (lambda (a b) (< (car a) (car b))))))))
+
+(cort-deftest richmd-mode-table-render
+  '((:equal '("│ Name  │ Age │"
+              "├───────┼─────┤"
+              "│ Alice │ 30  │")
+            (richmd-mode-tests--table-displays
+             "| Name | Age |\n| --- | --- |\n| Alice | 30 |\n"))
+    (:equal '("│   n │" "├─────┤" "│ 100 │")
+            (richmd-mode-tests--table-displays
+             "| n |\n| --: |\n| 100 |\n"))
+    (:equal nil
+            (richmd-mode-tests--table-displays
+             "this | is not | a table\n"))))
+
 (cort-deftest richmd-mode-toggle-clears-overlays
   '((:= 0
         (with-temp-buffer
