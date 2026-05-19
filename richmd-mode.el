@@ -609,6 +609,16 @@ already-rendered content untouched."
           (richmd-mode--make-overlay (match-beginning 2) (match-end 2)
                                      'face 'richmd-mode-quote-face))))))
 
+(defun richmd-mode--hang-indent (cols)
+  "Hang-indent the wrapped rows of the current line to column COLS.
+Imported from `org-modern', which aligns continuation lines via a
+`wrap-prefix' text property; here a `space' display spec pins
+every soft-wrapped row of a list item under its text."
+  (richmd-mode--make-overlay
+   (line-beginning-position) (line-end-position)
+   'wrap-prefix
+   (propertize " " 'display (list 'space :align-to cols))))
+
 (defun richmd-mode--fontify-task-lists (beg end)
   "Replace markdown task list checkboxes between BEG and END."
   (save-excursion
@@ -617,12 +627,16 @@ already-rendered content untouched."
             "^\\([ \t]*\\)\\([-*+]\\)[ \t]+\\(\\[\\([ xX]\\)\\]\\)[ \t]"
             end t)
       (unless (richmd-mode--in-code-block-p (match-beginning 0))
-        (let ((mark (match-string 4)))
+        (let ((mark (match-string 4))
+              (text-col (save-excursion
+                          (goto-char (match-end 0))
+                          (current-column))))
           (richmd-mode--make-overlay
            (match-beginning 3) (match-end 3)
            'display (if (string-blank-p mark)
                         richmd-mode-task-open
-                      richmd-mode-task-done)))))))
+                      richmd-mode-task-done))
+          (richmd-mode--hang-indent (max 0 (- text-col 2))))))))
 
 (defun richmd-mode--fontify-list-bullets (beg end)
   "Replace unordered list markers between BEG and END with a bullet."
@@ -635,10 +649,15 @@ already-rendered content untouched."
                     (looking-at "\\[[ xX]\\][ \t]")))
         (let* ((indent (- (match-end 1) (match-beginning 1)))
                (bullet (richmd-mode--bullet-for-depth indent))
-               (pad (make-string (max 0 richmd-mode-list-bullet-indent) ?\s)))
+               (pad (make-string (max 0 richmd-mode-list-bullet-indent) ?\s))
+               (text-col (save-excursion
+                           (goto-char (match-end 0))
+                           (current-column))))
           (richmd-mode--make-overlay (match-beginning 2) (match-end 2)
                                      'display (concat pad bullet)
-                                     'face 'richmd-mode-list-bullet-face))))))
+                                     'face 'richmd-mode-list-bullet-face)
+          (richmd-mode--hang-indent
+           (+ text-col (max 0 richmd-mode-list-bullet-indent))))))))
 
 (defun richmd-mode--fontify-ordered-list (beg end)
   "Subtly accent ordered list markers between BEG and END."
@@ -647,7 +666,9 @@ already-rendered content untouched."
     (while (re-search-forward "^\\([ \t]*\\)\\([0-9]+\\.\\)[ \t]+" end t)
       (unless (richmd-mode--in-code-block-p (match-beginning 0))
         (richmd-mode--make-overlay (match-beginning 2) (match-end 2)
-                                   'face 'richmd-mode-ordered-marker-face)))))
+                                   'face 'richmd-mode-ordered-marker-face)
+        (richmd-mode--hang-indent
+         (save-excursion (goto-char (match-end 0)) (current-column)))))))
 
 (defun richmd-mode--fontify-bold (beg end)
   "Fontify markdown bold text between BEG and END."
