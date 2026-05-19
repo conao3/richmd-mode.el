@@ -612,14 +612,14 @@ already-rendered content untouched."
 (defun richmd-mode--hang-indent (cols)
   "Hang-indent the wrapped rows of the current line to column COLS.
 Imported from `org-modern', which aligns continuation lines via a
-`wrap-prefix' text property; here a `space' display spec pins
-every soft-wrapped row of a list item under its text.  The
-property must be a text property: overlay `wrap-prefix' is not
-honored by the display engine."
+`wrap-prefix' text property so every soft-wrapped row of a list
+item is indented under its text.  It must be a text property:
+overlay `wrap-prefix' is not honored by the display engine, and a
+plain space string is used because a `(space :align-to)' display
+spec is ignored inside `wrap-prefix'."
   (put-text-property
    (line-beginning-position) (line-end-position)
-   'wrap-prefix
-   (propertize " " 'display (list 'space :align-to cols))))
+   'wrap-prefix (make-string (max 0 cols) ?\s)))
 
 (defun richmd-mode--fontify-task-lists (beg end)
   "Replace markdown task list checkboxes between BEG and END."
