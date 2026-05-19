@@ -490,8 +490,8 @@ already-rendered content untouched."
                               (apply #'propertize (concat "\n" bottom)
                                      'face 'richmd-mode-table-rule-face tight)))
                         (when (< le (point-max))
-                          (apply #'richmd-mode--make-overlay le (1+ le)
-                                 'face 'default tight))
+                          (put-text-property le (1+ le) 'line-spacing 0)
+                          (put-text-property le (1+ le) 'line-height t))
                         (setq idx (1+ idx))))))
             (goto-char hend)))))))
 
@@ -699,6 +699,8 @@ the following line."
   (interactive)
   (with-silent-modifications
     (richmd-mode--clear-overlays (point-min) (point-max))
+    (remove-text-properties (point-min) (point-max)
+                            '(line-spacing nil line-height nil))
     (richmd-mode--scan-code-blocks (point-min) (point-max))
     (richmd-mode--scan-tables (point-min) (point-max))
     (richmd-mode--fontify-headings (point-min) (point-max))
@@ -781,7 +783,9 @@ proportional family."
       (cancel-timer richmd-mode--refresh-timer)
       (setq richmd-mode--refresh-timer nil))
     (with-silent-modifications
-      (richmd-mode--clear-overlays (point-min) (point-max)))
+      (richmd-mode--clear-overlays (point-min) (point-max))
+      (remove-text-properties (point-min) (point-max)
+                              '(line-spacing nil line-height nil)))
     (setq richmd-mode--code-block-regions nil
           richmd-mode--table-regions nil)
     (richmd-mode--exit-display)))
