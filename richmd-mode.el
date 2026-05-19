@@ -89,8 +89,11 @@
   :group 'richmd-mode)
 
 (defface richmd-mode-italic-face
-  '((t :inherit italic))
-  "Face for italic text."
+  '((t :inherit variable-pitch :slant italic))
+  "Face for italic text.
+Inherits `variable-pitch' so it matches the proportional body
+font; `richmd-mode--sync-italic-family' substitutes an
+italic-capable family when that font has no italic variant."
   :group 'richmd-mode)
 
 (defface richmd-mode-strikethrough-face
@@ -809,6 +812,22 @@ proportional family."
       (set-face-attribute 'richmd-mode-code-block-lang-face nil :family mono)
       (set-face-attribute 'richmd-mode-hr-face nil :family mono))))
 
+(defun richmd-mode--sync-italic-family ()
+  "Give `richmd-mode-italic-face' a family that actually has an italic.
+A proportional body font often ships without an italic variant,
+so `:slant italic' would render upright.  When the inherited
+family lacks an italic, substitute the first candidate family
+that provides one."
+  (let ((base (face-attribute 'variable-pitch :family nil 'default)))
+    (unless (and base (stringp base)
+                 (find-font (font-spec :family base :slant 'italic)))
+      (let ((alt (cl-find-if
+                  (lambda (f) (find-font (font-spec :family f :slant 'italic)))
+                  '("Noto Sans" "DejaVu Sans" "Liberation Sans"
+                    "Bitstream Vera Sans" "FreeSans"))))
+        (when alt
+          (set-face-attribute 'richmd-mode-italic-face nil :family alt))))))
+
 (defun richmd-mode--enter-display ()
   "Apply buffer-local display settings for `richmd-mode'."
   (add-to-invisibility-spec 'richmd-mode)
@@ -824,6 +843,7 @@ proportional family."
     (setq-local word-wrap t)
     (setq-local truncate-lines nil))
   (richmd-mode--sync-code-family)
+  (richmd-mode--sync-italic-family)
   (setq richmd-mode--body-cookie
         (face-remap-add-relative 'default 'richmd-mode-body-face)))
 
