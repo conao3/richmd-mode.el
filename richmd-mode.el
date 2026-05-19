@@ -226,7 +226,7 @@ grid, so a tight buffer matches the reference more faithfully."
                  (float :tag "Fraction"))
   :group 'richmd-mode)
 
-(defcustom richmd-mode-text-scale 1.3
+(defcustom richmd-mode-text-scale 1.15
   "Relative height multiplier for the whole rendered buffer.
 
 Applied as a `:height' face remap on top of
