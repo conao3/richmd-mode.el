@@ -613,8 +613,10 @@ already-rendered content untouched."
   "Hang-indent the wrapped rows of the current line to column COLS.
 Imported from `org-modern', which aligns continuation lines via a
 `wrap-prefix' text property; here a `space' display spec pins
-every soft-wrapped row of a list item under its text."
-  (richmd-mode--make-overlay
+every soft-wrapped row of a list item under its text.  The
+property must be a text property: overlay `wrap-prefix' is not
+honored by the display engine."
+  (put-text-property
    (line-beginning-position) (line-end-position)
    'wrap-prefix
    (propertize " " 'display (list 'space :align-to cols))))
@@ -822,7 +824,7 @@ the following line."
   (with-silent-modifications
     (richmd-mode--clear-overlays (point-min) (point-max))
     (remove-text-properties (point-min) (point-max)
-                            '(line-spacing nil line-height nil))
+                            '(line-spacing nil line-height nil wrap-prefix nil))
     (richmd-mode--scan-code-blocks (point-min) (point-max))
     (richmd-mode--scan-tables (point-min) (point-max))
     (richmd-mode--fontify-headings (point-min) (point-max))
@@ -933,7 +935,7 @@ that provides one."
     (with-silent-modifications
       (richmd-mode--clear-overlays (point-min) (point-max))
       (remove-text-properties (point-min) (point-max)
-                              '(line-spacing nil line-height nil)))
+                              '(line-spacing nil line-height nil wrap-prefix nil)))
     (setq richmd-mode--code-block-regions nil
           richmd-mode--table-regions nil)
     (richmd-mode--exit-display)))
