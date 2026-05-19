@@ -226,6 +226,17 @@ grid, so a tight buffer matches the reference more faithfully."
                  (float :tag "Fraction"))
   :group 'richmd-mode)
 
+(defcustom richmd-mode-text-scale 1.25
+  "Relative height multiplier for the whole rendered buffer.
+
+Applied as a `:height' face remap on top of
+`richmd-mode-body-face' when `richmd-mode' is enabled, so every
+construct (headings, code, tables) scales proportionally.  The
+default enlarges the body to roughly match the font size GitHub
+renders Markdown at relative to a typical Emacs default of 13px."
+  :type 'number
+  :group 'richmd-mode)
+
 (defcustom richmd-mode-list-bullet-indent 2
   "Number of spaces injected before unordered list bullets for indentation."
   :type 'integer
@@ -870,7 +881,8 @@ that provides one."
   (richmd-mode--sync-code-family)
   (richmd-mode--sync-italic-family)
   (setq richmd-mode--body-cookie
-        (face-remap-add-relative 'default 'richmd-mode-body-face)))
+        (face-remap-add-relative 'default 'richmd-mode-body-face
+                                 :height richmd-mode-text-scale)))
 
 (defun richmd-mode--exit-display ()
   "Revert buffer-local display settings applied by `richmd-mode'."
