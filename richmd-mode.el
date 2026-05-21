@@ -30,25 +30,26 @@
 (require 'cl-lib)
 (require 'face-remap)
 
-(defgroup richmd-mode nil
+(defgroup richmd nil
   "Rich rendering markdown buffer."
   :group 'convenience
+  :prefix "richmd-mode-"
   :link '(url-link :tag "Github" "https://github.com/conao3/richmd-mode.el"))
 
 (defface richmd-mode-body-face
   '((t :inherit variable-pitch))
   "Face applied to the buffer for proportional body rendering."
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defface richmd-mode-heading-1-face
   '((t :inherit (variable-pitch outline-1) :height 2.0 :weight bold))
   "Face for level-1 headings."
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defface richmd-mode-heading-2-face
   '((t :inherit (variable-pitch outline-2) :height 1.5 :weight bold))
   "Face for level-2 headings."
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defface richmd-mode-heading-rule-face
   '((((background light)) :overline "#afb8c1")
@@ -60,22 +61,22 @@ buffer line, so it stays aligned under
 `display-line-numbers-mode') rather than as a glyph underline,
 which would collide with the descenders of the large heading
 font."
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defface richmd-mode-heading-3-face
   '((t :inherit (variable-pitch outline-3) :height 1.25 :weight bold))
   "Face for level-3 headings."
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defface richmd-mode-heading-4-face
   '((t :inherit (variable-pitch outline-4) :weight bold))
   "Face for level-4 headings."
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defface richmd-mode-heading-5-face
   '((t :inherit (variable-pitch outline-5) :weight bold :height 0.875))
   "Face for level-5 headings."
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defface richmd-mode-heading-6-face
   '((((background light)) :inherit (variable-pitch outline-6)
@@ -83,12 +84,12 @@ font."
     (((background dark))  :inherit (variable-pitch outline-6)
      :weight bold :height 0.85 :foreground "#8b949e"))
   "Face for level-6 headings."
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defface richmd-mode-bold-face
   '((t :inherit bold))
   "Face for bold text."
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defface richmd-mode-italic-face
   '((t :inherit variable-pitch :slant italic))
@@ -96,12 +97,12 @@ font."
 Inherits `variable-pitch' so it matches the proportional body
 font; `richmd-mode--sync-italic-family' substitutes an
 italic-capable family when that font has no italic variant."
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defface richmd-mode-strikethrough-face
   '((t :strike-through t))
   "Face for strikethrough text."
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defface richmd-mode-code-face
   '((((background light)) :inherit fixed-pitch
@@ -115,14 +116,14 @@ italic-capable family when that font has no italic variant."
 GitHub renders inline code at roughly 85% of the surrounding font
 size, which also shrinks the glyph cell vertically and therefore
 prevents the grey background from visually merging with the
-line-spacing area of adjacent lines."
-  :group 'richmd-mode)
+`line-spacing' area of adjacent lines."
+  :group 'richmd)
 
 (defface richmd-mode-code-block-face
   '((((background light)) :inherit fixed-pitch :background "#f6f8fa" :extend t)
     (((background dark))  :inherit fixed-pitch :background "#161b22" :extend t))
   "Face for fenced code blocks."
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defface richmd-mode-code-block-lang-face
   '((((background light)) :inherit fixed-pitch :foreground "#59636e"
@@ -130,91 +131,91 @@ line-spacing area of adjacent lines."
     (((background dark))  :inherit fixed-pitch :foreground "#8b949e"
      :background "#21262d" :extend t :height 0.9))
   "Face for the language tag line of a fenced code block."
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defface richmd-mode-link-face
   '((((background light)) :inherit variable-pitch :foreground "#0969da")
     (((background dark))  :inherit variable-pitch :foreground "#2f81f7"))
   "Face for links."
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defface richmd-mode-quote-face
   '((((background light)) :inherit variable-pitch :foreground "#59636e" :slant italic)
     (((background dark))  :inherit variable-pitch :foreground "#8b949e" :slant italic))
   "Face for blockquote text."
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defface richmd-mode-footnote-face
   '((((background light)) :inherit variable-pitch :foreground "#0969da" :height 0.85)
     (((background dark))  :inherit variable-pitch :foreground "#2f81f7" :height 0.85))
   "Face for footnote references and definition markers."
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defface richmd-mode-alert-note-face
   '((((background light)) :foreground "#0969da" :weight bold)
     (((background dark))  :foreground "#2f81f7" :weight bold))
   "Face for the title of a GitHub `[!NOTE]' alert."
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defface richmd-mode-alert-tip-face
   '((((background light)) :foreground "#1a7f37" :weight bold)
     (((background dark))  :foreground "#3fb950" :weight bold))
   "Face for the title of a GitHub `[!TIP]' alert."
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defface richmd-mode-alert-important-face
   '((((background light)) :foreground "#8250df" :weight bold)
     (((background dark))  :foreground "#a371f7" :weight bold))
   "Face for the title of a GitHub `[!IMPORTANT]' alert."
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defface richmd-mode-alert-warning-face
   '((((background light)) :foreground "#9a6700" :weight bold)
     (((background dark))  :foreground "#d29922" :weight bold))
   "Face for the title of a GitHub `[!WARNING]' alert."
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defface richmd-mode-alert-caution-face
   '((((background light)) :foreground "#cf222e" :weight bold)
     (((background dark))  :foreground "#f85149" :weight bold))
   "Face for the title of a GitHub `[!CAUTION]' alert."
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defface richmd-mode-alert-note-bar-face
   '((((background light)) :background "#0969da" :foreground "#0969da")
     (((background dark))  :background "#2f81f7" :foreground "#2f81f7"))
   "Bar face for a GitHub `[!NOTE]' alert block."
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defface richmd-mode-alert-tip-bar-face
   '((((background light)) :background "#1a7f37" :foreground "#1a7f37")
     (((background dark))  :background "#3fb950" :foreground "#3fb950"))
   "Bar face for a GitHub `[!TIP]' alert block."
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defface richmd-mode-alert-important-bar-face
   '((((background light)) :background "#8250df" :foreground "#8250df")
     (((background dark))  :background "#a371f7" :foreground "#a371f7"))
   "Bar face for a GitHub `[!IMPORTANT]' alert block."
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defface richmd-mode-alert-warning-bar-face
   '((((background light)) :background "#9a6700" :foreground "#9a6700")
     (((background dark))  :background "#d29922" :foreground "#d29922"))
   "Bar face for a GitHub `[!WARNING]' alert block."
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defface richmd-mode-alert-caution-bar-face
   '((((background light)) :background "#cf222e" :foreground "#cf222e")
     (((background dark))  :background "#f85149" :foreground "#f85149"))
   "Bar face for a GitHub `[!CAUTION]' alert block."
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defface richmd-mode-quote-bar-face
   '((((background light)) :background "#d0d7de" :foreground "#d0d7de")
     (((background dark))  :background "#3d444d" :foreground "#3d444d"))
   "Face used to draw the left bar of blockquotes."
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defface richmd-mode-hr-face
   '((((background light)) :inherit fixed-pitch :foreground "#d1d9e0"
@@ -222,51 +223,51 @@ line-spacing area of adjacent lines."
     (((background dark))  :inherit fixed-pitch :foreground "#3d444d"
      :strike-through "#3d444d"))
   "Face for horizontal rules."
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defface richmd-mode-table-face
   '((t :inherit fixed-pitch))
   "Face for rendered Markdown tables."
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defface richmd-mode-table-rule-face
   '((((background light)) :inherit fixed-pitch :foreground "#d0d7de")
     (((background dark))  :inherit fixed-pitch :foreground "#3d444d"))
   "Face for the box-drawing borders of rendered tables."
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defface richmd-mode-table-header-face
   '((t :inherit fixed-pitch :weight bold))
   "Face for the header row of rendered tables."
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defface richmd-mode-table-row-face
   '((((background light)) :inherit fixed-pitch :background "#f6f8fa")
     (((background dark))  :inherit fixed-pitch :background "#161b22"))
   "Face for the zebra-striped alternate body rows of rendered tables."
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defface richmd-mode-list-bullet-face
   '((((background light)) :inherit variable-pitch :foreground "#59636e")
     (((background dark))  :inherit variable-pitch :foreground "#8b949e"))
   "Face for unordered list bullets."
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defface richmd-mode-ordered-marker-face
   '((((background light)) :inherit variable-pitch :foreground "#59636e")
     (((background dark))  :inherit variable-pitch :foreground "#8b949e"))
   "Face for ordered list markers."
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defcustom richmd-mode-list-bullets '("•" "◦" "▪" "▫")
   "Strings to substitute for unordered list markers by indent depth."
   :type '(repeat string)
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defcustom richmd-mode-task-open "☐"
   "Display string used in place of an open task list checkbox."
   :type 'string
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defcustom richmd-mode-alert-titles
   '(("NOTE"      . "ⓘ Note")
@@ -276,7 +277,7 @@ line-spacing area of adjacent lines."
     ("CAUTION"   . "🛑 Caution"))
   "Display titles substituted for `[!TYPE]' tags in GitHub Alerts."
   :type '(alist :key-type string :value-type string)
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defcustom richmd-mode-image-prefix "🖼 "
   "Glyph inserted before the alt text of an inline image.
@@ -284,12 +285,12 @@ GitHub renders the image itself, which a buffer-only renderer
 cannot.  Showing a small icon before the alt text signals at a
 glance that the span is an image rather than a plain link."
   :type 'string
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defcustom richmd-mode-task-done "☑"
   "Display string used in place of a closed task list checkbox."
   :type 'string
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defcustom richmd-mode-line-spacing nil
   "Extra blank space inserted below each line while `richmd-mode' is active.
@@ -308,7 +309,7 @@ grid, so a tight buffer matches the reference more faithfully."
   :type '(choice (const :tag "None" nil)
                  (integer :tag "Pixels")
                  (float :tag "Fraction"))
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defcustom richmd-mode-text-scale 1.0
   "Relative height multiplier for the whole rendered buffer.
@@ -319,7 +320,7 @@ construct (headings, code, tables) scales proportionally.  The
 default enlarges the body to roughly match the font size GitHub
 renders Markdown at relative to a typical Emacs default of 13px."
   :type 'number
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defcustom richmd-mode-list-bullet-indent 4
   "Number of spaces injected before unordered list bullets for indentation.
@@ -327,19 +328,19 @@ GitHub indents lists by roughly 2em; four columns approximates
 that.  The hanging indent of wrapped item lines tracks this
 value, so deeper bullets keep their continuation aligned."
   :type 'integer
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defcustom richmd-mode-code-block-margin 2
   "Number of leading spaces shown before each fenced code block line."
   :type 'integer
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defcustom richmd-mode-table-cell-padding 2
   "Number of blank columns inserted on each side of a table cell.
 GitHub renders table cells with roomy horizontal padding; two
 fixed-pitch columns approximate that better than a single one."
   :type 'integer
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defcustom richmd-mode-table t
   "When non-nil, render GFM pipe tables with aligned box-drawing borders.
@@ -349,7 +350,7 @@ table beautification replaces the ASCII pipes and dashes with
 box-drawing glyphs; here columns are additionally padded so they
 line up under a fixed-pitch face."
   :type 'boolean
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defcustom richmd-mode-reveal-markup t
   "When non-nil, reveal the hidden markup of the inline element at point.
@@ -359,7 +360,7 @@ library: while point sits on a styled inline element its raw
 Markdown markers are shown again so the element can be edited,
 and they are hidden once point leaves."
   :type 'boolean
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defcustom richmd-mode-reflow-paragraphs t
   "When non-nil, render soft line breaks inside a paragraph as spaces.
@@ -373,7 +374,7 @@ instead of breaking mid-sentence.  Block boundaries (blank lines,
 headings, lists, blockquotes, tables, fenced code) are never
 joined."
   :type 'boolean
-  :group 'richmd-mode)
+  :group 'richmd)
 
 (defvar-local richmd-mode--overlays nil)
 (defvar-local richmd-mode--enabled-visual-line nil)
@@ -993,12 +994,12 @@ and does not start a block construct."
         (forward-line 1)))))
 
 (defun richmd-mode--neutralize-line-spacing (beg end)
-  "Force every newline outside code blocks to render with the default face.
+  "Neutralize newline faces between BEG and END outside code blocks.
 
-The line-spacing area below each visual line is painted using the
-face attributes of the newline glyph terminating that line.  By
-overlaying each newline with the `default' face we keep the
-buffer-wide line-spacing strip neutral, so an inline-code
+The `line-spacing' area below each visual line is painted using
+the face attributes of the newline glyph terminating that line.
+By overlaying each newline with the `default' face we keep the
+buffer-wide `line-spacing' strip neutral, so an inline-code
 overlay's grey background can no longer bleed into the gap above
 the following line."
   (save-excursion
@@ -1111,8 +1112,7 @@ autolink rules."
              (before (and (> mbeg (point-min)) (char-before mbeg)))
              (face-at (get-char-property mbeg 'face)))
         (unless (or (richmd-mode--in-code-block-p mbeg)
-                    (memq before '(?\( ?\[ ?> ?< ?\" ?')
-                          )
+                    (memq before '(?\( ?\[ ?> ?< ?\" ?'))
                     (eq face-at 'richmd-mode-link-face)
                     (and (listp face-at)
                          (memq 'richmd-mode-link-face face-at)))
