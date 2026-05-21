@@ -1321,10 +1321,10 @@ the last source line of the paragraph instead of stopping at the
 first soft newline.  Outside a paragraph behaves like
 `end-of-visual-line'.
 
-With a numeric prefix ARG, behave like the standard
+With a non-nil raw prefix ARG, behave like the standard
 `move-end-of-line' invoked with that ARG."
-  (interactive "^p")
-  (if (and (not arg)
+  (interactive "^P")
+  (if (and (null arg)
            richmd-mode-reflow-paragraphs
            (richmd-mode--paragraph-line-p
             (line-beginning-position) (line-end-position)))
@@ -1338,8 +1338,8 @@ With a numeric prefix ARG, behave like the standard
           (forward-line 1)
           (end-of-line)))
     (if (bound-and-true-p visual-line-mode)
-        (end-of-visual-line arg)
-      (move-end-of-line arg))))
+        (end-of-visual-line (and arg (prefix-numeric-value arg)))
+      (move-end-of-line (and arg (prefix-numeric-value arg))))))
 
 (defun richmd-mode-beginning-of-line (&optional arg)
   "Move point to the start of the reflowed paragraph line.
@@ -1348,8 +1348,8 @@ Symmetric counterpart of `richmd-mode-end-of-line': in a
 soft-wrapped paragraph treat the whole paragraph as one logical
 line and jump to its first source line.  Outside a paragraph
 behaves like `beginning-of-visual-line'."
-  (interactive "^p")
-  (if (and (not arg)
+  (interactive "^P")
+  (if (and (null arg)
            richmd-mode-reflow-paragraphs
            (richmd-mode--paragraph-line-p
             (line-beginning-position) (line-end-position)))
@@ -1363,8 +1363,8 @@ behaves like `beginning-of-visual-line'."
           (forward-line -1)
           (beginning-of-line)))
     (if (bound-and-true-p visual-line-mode)
-        (beginning-of-visual-line arg)
-      (move-beginning-of-line arg))))
+        (beginning-of-visual-line (and arg (prefix-numeric-value arg)))
+      (move-beginning-of-line (and arg (prefix-numeric-value arg))))))
 
 (defvar richmd-mode-map
   (let ((map (make-sparse-keymap)))
