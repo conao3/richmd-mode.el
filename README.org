@@ -38,7 +38,6 @@ Supported Markdown constructs:
 
 - ATX headings (~#~ … ~######~) and setext headings (~Title\n====~ /
   ~Title\n----~)
-- Paragraphs with CommonMark-style soft-break reflow
 - Bold, italic (~*~ and ~_~ with intraword-underscore guard),
   strikethrough, inline code
 - Inline links ~[text](url)~, images ~![alt](url)~, autolinks
@@ -110,9 +109,9 @@ User options:
   box-drawing borders.
 - ~richmd-mode-reveal-markup~ — when non-nil, reveal raw markers of
   the inline element at point.
-- ~richmd-mode-reflow-paragraphs~ — when non-nil, render single
-  intra-paragraph newlines as spaces (CommonMark behaviour) and turn
-  on ~visual-line-mode~ for the buffer.
+
+~richmd-mode~ turns on ~visual-line-mode~ in the buffer so long source
+lines wrap by word; it is disabled again on toggle-off.
 
 * Information
 ** Community

@@ -362,20 +362,6 @@ and they are hidden once point leaves."
   :type 'boolean
   :group 'richmd)
 
-(defcustom richmd-mode-reflow-paragraphs t
-  "When non-nil, render soft line breaks inside a paragraph as spaces.
-
-CommonMark and GitHub collapse a single newline within a
-paragraph into a space and reflow the text to the container
-width.  With this enabled `richmd-mode' overlays such intra-
-paragraph newlines with a space and turns on word wrapping, so a
-hard-wrapped Markdown source still displays as flowing paragraphs
-instead of breaking mid-sentence.  Block boundaries (blank lines,
-headings, lists, blockquotes, tables, fenced code) are never
-joined."
-  :type 'boolean
-  :group 'richmd)
-
 (defvar-local richmd-mode--overlays nil)
 (defvar-local richmd-mode--enabled-visual-line nil)
 (defvar-local richmd-mode--enabled-cursor-intangible nil)
@@ -972,26 +958,6 @@ and does not start a block construct."
                        "\\|\\(?:[-*_][ \t]*\\)\\{3,\\}[ \t]*\\'\\)")
                s)))))
 
-(defun richmd-mode--reflow-paragraphs (beg end)
-  "Render single intra-paragraph newlines between BEG and END as spaces."
-  (when richmd-mode-reflow-paragraphs
-    (save-excursion
-      (goto-char beg)
-      (while (and (< (point) end) (not (eobp)))
-        (let ((lb (line-beginning-position))
-              (le (line-end-position)))
-          (when (and (< le end)
-                     (eq (char-after le) ?\n)
-                     (richmd-mode--paragraph-line-p lb le)
-                     (not (string-match-p
-                           "  \\'" (buffer-substring-no-properties lb le)))
-                     (save-excursion
-                       (goto-char (1+ le))
-                       (richmd-mode--paragraph-line-p
-                        (line-beginning-position) (line-end-position))))
-            (richmd-mode--make-overlay le (1+ le) 'display " ")))
-        (forward-line 1)))))
-
 (defun richmd-mode--neutralize-line-spacing (beg end)
   "Neutralize newline faces between BEG and END outside code blocks.
 
@@ -1221,7 +1187,6 @@ prefix glyph, and the URL is exposed via `help-echo'."
     (richmd-mode--fontify-reference-links (point-min) (point-max))
     (richmd-mode--fontify-footnotes (point-min) (point-max))
     (richmd-mode--fontify-autolinks (point-min) (point-max))
-    (richmd-mode--reflow-paragraphs (point-min) (point-max))
     (richmd-mode--neutralize-line-spacing (point-min) (point-max)))
   (setq richmd-mode--revealed-span nil
         richmd-mode--revealed-markers nil)
@@ -1274,8 +1239,7 @@ that provides one."
         (local-variable-p 'line-spacing))
   (setq richmd-mode--saved-line-spacing line-spacing)
   (setq-local line-spacing richmd-mode-line-spacing)
-  (when (and richmd-mode-reflow-paragraphs
-             (not (bound-and-true-p visual-line-mode)))
+  (unless (bound-and-true-p visual-line-mode)
     (visual-line-mode 1)
     (setq richmd-mode--enabled-visual-line t))
   (unless (bound-and-true-p cursor-intangible-mode)
@@ -1309,69 +1273,10 @@ that provides one."
         richmd-mode--had-local-line-spacing nil)
   (remove-from-invisibility-spec 'richmd-mode))
 
-(defun richmd-mode-end-of-line (&optional arg)
-  "Move point to the end of the reflowed paragraph line.
-
-When point sits inside a soft-wrapped paragraph and
-`richmd-mode-reflow-paragraphs' is on, intra-paragraph newlines
-are displayed as spaces; the visual paragraph extends across
-several buffer lines.  This command treats that whole paragraph
-as one logical line so \\[move-end-of-line] reaches the end of
-the last source line of the paragraph instead of stopping at the
-first soft newline.  Outside a paragraph behaves like
-`end-of-visual-line'.
-
-With a non-nil raw prefix ARG, behave like the standard
-`move-end-of-line' invoked with that ARG."
-  (interactive "^P")
-  (if (and (null arg)
-           richmd-mode-reflow-paragraphs
-           (richmd-mode--paragraph-line-p
-            (line-beginning-position) (line-end-position)))
-      (progn
-        (end-of-line)
-        (while (and (not (eobp))
-                    (save-excursion
-                      (forward-line 1)
-                      (richmd-mode--paragraph-line-p
-                       (line-beginning-position) (line-end-position))))
-          (forward-line 1)
-          (end-of-line)))
-    (if (bound-and-true-p visual-line-mode)
-        (end-of-visual-line (and arg (prefix-numeric-value arg)))
-      (move-end-of-line (and arg (prefix-numeric-value arg))))))
-
-(defun richmd-mode-beginning-of-line (&optional arg)
-  "Move point to the beginning of the current source line.
-
-Asymmetric counterpart of `richmd-mode-end-of-line': C-e in a
-reflowed paragraph reaches the end of the whole paragraph, but
-C-a is scoped to the source line so the user can navigate to the
-start of the textual run on this physical buffer line.  This is
-deliberately not the visual-row start: the visual wrap point
-shifts with the window width and would land on arbitrary
-positions inside words after the paragraph has been reflowed."
-  (interactive "^P")
-  (move-beginning-of-line (and arg (prefix-numeric-value arg))))
-
-(defvar richmd-mode-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "C-e") #'richmd-mode-end-of-line)
-    (define-key map (kbd "C-a") #'richmd-mode-beginning-of-line)
-    (define-key map [remap move-end-of-line] #'richmd-mode-end-of-line)
-    (define-key map [remap end-of-visual-line] #'richmd-mode-end-of-line)
-    (define-key map [remap move-beginning-of-line]
-                #'richmd-mode-beginning-of-line)
-    (define-key map [remap beginning-of-visual-line]
-                #'richmd-mode-beginning-of-line)
-    map)
-  "Keymap for `richmd-mode'.")
-
 ;;;###autoload
 (define-minor-mode richmd-mode
   "Toggle rich rendering of Markdown buffers via overlays."
   :lighter " RichMd"
-  :keymap richmd-mode-map
   (if richmd-mode
       (progn
         (richmd-mode--enter-display)
