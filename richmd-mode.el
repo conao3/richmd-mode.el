@@ -750,10 +750,7 @@ underline is `---'."
                   (richmd-mode--make-overlay
                    ubeg uend
                    'face 'richmd-mode-heading-rule-face
-                   'display
-                   (propertize " "
-                               'face 'richmd-mode-heading-rule-face
-                               'display '(space :align-to right)))
+                   'display '(space :align-to right))
                   (push (cons ubeg uend)
                         richmd-mode--setext-regions))))))))))
 
