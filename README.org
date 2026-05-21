@@ -26,7 +26,34 @@
 * Description
 [[https://github.com/conao3/richmd-mode.el][https://raw.githubusercontent.com/conao3/files/master/blob/richmd-mode.el/richmd-mode.gif]]
 
-Rich rendering markdown buffer.
+~richmd-mode~ is a minor mode that overlays a Markdown buffer to
+visually match how GitHub renders it: proportional body text, large
+underlined H1/H2, fenced/indented code with a tinted background, GFM
+pipe tables drawn with box-drawing characters, blockquote bars, task
+list checkboxes, GitHub-style alerts (~> [!NOTE]~ …), reference-style
+links, footnotes, inline and bare-URL autolinks, and an ~org-appear~
+style markup reveal on the inline element under point.
+
+Supported Markdown constructs:
+
+- ATX headings (~#~ … ~######~) and setext headings (~Title\n====~ /
+  ~Title\n----~)
+- Paragraphs with CommonMark-style soft-break reflow
+- Bold, italic (~*~ and ~_~ with intraword-underscore guard),
+  strikethrough, inline code
+- Inline links ~[text](url)~, images ~![alt](url)~, autolinks
+  ~<url>~ / ~<email>~, bare ~http(s)~ URLs, reference-style links
+  ~[text][id]~ and definitions ~[id]: url~
+- Blockquotes (nested) and GitHub alerts: ~[!NOTE]~, ~[!TIP]~,
+  ~[!IMPORTANT]~, ~[!WARNING]~, ~[!CAUTION]~
+- Unordered and ordered lists with hang-indented wrap, task list
+  checkboxes (~- [ ]~ / ~- [x]~)
+- Fenced and 4-space indented code blocks; fenced blocks display the
+  language tag on a dedicated line
+- GFM pipe tables rendered as a single box-drawn grid with header
+  row and zebra-striped body rows
+- Horizontal rules
+- Footnote references ~[^id]~ and definitions ~[^id]: …~
 
 * Install
 Sample install code using [[https://github.com/conao3/leaf.el][leaf.el]].
@@ -36,8 +63,56 @@ Sample install code using [[https://github.com/conao3/leaf.el][leaf.el]].
 #+end_src
 
 * Usage
+Open a Markdown buffer and toggle the mode:
+
+#+begin_src emacs-lisp
+  M-x richmd-mode
+#+end_src
+
+To enable automatically alongside ~markdown-mode~:
+
+#+begin_src emacs-lisp
+  (add-hook 'markdown-mode-hook #'richmd-mode)
+#+end_src
+
+While point sits on a styled inline element (bold, italic, code,
+link, …) the raw Markdown markers are revealed so the element can be
+edited; the markers re-hide when point leaves.
+
+Buffer-wide refresh is handled automatically on edits via an idle
+timer.  To force a rebuild from Lisp call ~richmd-mode-fontify-buffer~.
 
 * Customize
+All faces are under the ~richmd-mode~ group and can be themed via
+~M-x customize-group RET richmd-mode RET~.
+
+User options:
+
+- ~richmd-mode-list-bullets~ — bullet glyphs substituted for ~-~/~*~/~+~
+  by indent depth.
+- ~richmd-mode-task-open~ / ~richmd-mode-task-done~ — glyphs used in
+  place of ~[ ]~ and ~[x]~ in task lists.
+- ~richmd-mode-image-prefix~ — glyph inserted before image alt text.
+- ~richmd-mode-alert-titles~ — alist mapping alert types (~NOTE~,
+  ~TIP~, ~IMPORTANT~, ~WARNING~, ~CAUTION~) to their display titles.
+- ~richmd-mode-line-spacing~ — buffer-local ~line-spacing~ override.
+  Defaults to nil because positive values break the connected
+  table-grid look.
+- ~richmd-mode-text-scale~ — ~:height~ multiplier applied to the body
+  face when the mode is enabled (default 1.0).
+- ~richmd-mode-list-bullet-indent~ — leading spaces inserted before
+  unordered list bullets (default 4, matches GitHub's ~2em~).
+- ~richmd-mode-code-block-margin~ — leading spaces shown before each
+  fenced code block line (default 2).
+- ~richmd-mode-table-cell-padding~ — blank columns inserted on each
+  side of a table cell (default 2).
+- ~richmd-mode-table~ — when non-nil, render GFM pipe tables with
+  box-drawing borders.
+- ~richmd-mode-reveal-markup~ — when non-nil, reveal raw markers of
+  the inline element at point.
+- ~richmd-mode-reflow-paragraphs~ — when non-nil, render single
+  intra-paragraph newlines as spaces (CommonMark behaviour) and turn
+  on ~visual-line-mode~ for the buffer.
 
 * Information
 ** Community
