@@ -708,19 +708,12 @@ list continuation lines are not misclassified."
               (goto-char eol)
               (when (and (< (point) (point-max))
                          (eq (char-after) ?\n))
-                (forward-line 1)
-                (let ((bl (line-beginning-position))
-                      (el (line-end-position)))
-                  (when (and (= bl el) (< el (point-max))
-                             (not (richmd-mode--in-code-block-p bl)))
-                    (richmd-mode--make-overlay
-                     el (1+ el)
-                     'display
-                     (concat (propertize
-                              " "
-                              'face 'richmd-mode-heading-rule-face
-                              'display '(space :align-to right))
-                             "\n"))))))))))))
+                (richmd-mode--make-overlay
+                 eol (1+ eol)
+                 'after-string
+                 (propertize " "
+                             'face 'richmd-mode-heading-rule-face
+                             'display '(space :align-to right)))))))))))
 
 (defun richmd-mode--in-setext-p (pos)
   "Return non-nil if POS is inside a setext heading underline span."
