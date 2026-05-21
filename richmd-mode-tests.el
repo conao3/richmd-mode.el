@@ -72,6 +72,18 @@
     (:equal '(richmd-mode-link-face)
             (richmd-mode-tests--faces-in "img ![alt](https://example.com/x.png)\n"))))
 
+(cort-deftest richmd-mode-alerts
+  '((:equal '(richmd-mode-alert-note-bar-face
+              richmd-mode-alert-note-face
+              richmd-mode-quote-face)
+            (richmd-mode-tests--faces-in "> [!NOTE]\n> Body line.\n"))
+    (:equal '(richmd-mode-alert-caution-bar-face
+              richmd-mode-alert-caution-face
+              richmd-mode-quote-face)
+            (richmd-mode-tests--faces-in "> [!CAUTION]\n> Body.\n"))
+    (:equal '(richmd-mode-quote-bar-face richmd-mode-quote-face)
+            (richmd-mode-tests--faces-in "> just a quote\n"))))
+
 (cort-deftest richmd-mode-reference-link
   '((:equal '(richmd-mode-link-face)
             (richmd-mode-tests--faces-in

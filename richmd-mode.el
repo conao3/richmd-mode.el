@@ -144,6 +144,66 @@ line-spacing area of adjacent lines."
   "Face for blockquote text."
   :group 'richmd-mode)
 
+(defface richmd-mode-alert-note-face
+  '((((background light)) :foreground "#0969da" :weight bold)
+    (((background dark))  :foreground "#2f81f7" :weight bold))
+  "Face for the title of a GitHub `[!NOTE]' alert."
+  :group 'richmd-mode)
+
+(defface richmd-mode-alert-tip-face
+  '((((background light)) :foreground "#1a7f37" :weight bold)
+    (((background dark))  :foreground "#3fb950" :weight bold))
+  "Face for the title of a GitHub `[!TIP]' alert."
+  :group 'richmd-mode)
+
+(defface richmd-mode-alert-important-face
+  '((((background light)) :foreground "#8250df" :weight bold)
+    (((background dark))  :foreground "#a371f7" :weight bold))
+  "Face for the title of a GitHub `[!IMPORTANT]' alert."
+  :group 'richmd-mode)
+
+(defface richmd-mode-alert-warning-face
+  '((((background light)) :foreground "#9a6700" :weight bold)
+    (((background dark))  :foreground "#d29922" :weight bold))
+  "Face for the title of a GitHub `[!WARNING]' alert."
+  :group 'richmd-mode)
+
+(defface richmd-mode-alert-caution-face
+  '((((background light)) :foreground "#cf222e" :weight bold)
+    (((background dark))  :foreground "#f85149" :weight bold))
+  "Face for the title of a GitHub `[!CAUTION]' alert."
+  :group 'richmd-mode)
+
+(defface richmd-mode-alert-note-bar-face
+  '((((background light)) :background "#0969da" :foreground "#0969da")
+    (((background dark))  :background "#2f81f7" :foreground "#2f81f7"))
+  "Bar face for a GitHub `[!NOTE]' alert block."
+  :group 'richmd-mode)
+
+(defface richmd-mode-alert-tip-bar-face
+  '((((background light)) :background "#1a7f37" :foreground "#1a7f37")
+    (((background dark))  :background "#3fb950" :foreground "#3fb950"))
+  "Bar face for a GitHub `[!TIP]' alert block."
+  :group 'richmd-mode)
+
+(defface richmd-mode-alert-important-bar-face
+  '((((background light)) :background "#8250df" :foreground "#8250df")
+    (((background dark))  :background "#a371f7" :foreground "#a371f7"))
+  "Bar face for a GitHub `[!IMPORTANT]' alert block."
+  :group 'richmd-mode)
+
+(defface richmd-mode-alert-warning-bar-face
+  '((((background light)) :background "#9a6700" :foreground "#9a6700")
+    (((background dark))  :background "#d29922" :foreground "#d29922"))
+  "Bar face for a GitHub `[!WARNING]' alert block."
+  :group 'richmd-mode)
+
+(defface richmd-mode-alert-caution-bar-face
+  '((((background light)) :background "#cf222e" :foreground "#cf222e")
+    (((background dark))  :background "#f85149" :foreground "#f85149"))
+  "Bar face for a GitHub `[!CAUTION]' alert block."
+  :group 'richmd-mode)
+
 (defface richmd-mode-quote-bar-face
   '((((background light)) :background "#d0d7de" :foreground "#d0d7de")
     (((background dark))  :background "#3d444d" :foreground "#3d444d"))
@@ -200,6 +260,16 @@ line-spacing area of adjacent lines."
 (defcustom richmd-mode-task-open "☐"
   "Display string used in place of an open task list checkbox."
   :type 'string
+  :group 'richmd-mode)
+
+(defcustom richmd-mode-alert-titles
+  '(("NOTE"      . "ⓘ Note")
+    ("TIP"       . "💡 Tip")
+    ("IMPORTANT" . "❗ Important")
+    ("WARNING"   . "⚠ Warning")
+    ("CAUTION"   . "🛑 Caution"))
+  "Display titles substituted for `[!TYPE]' tags in GitHub Alerts."
+  :type '(alist :key-type string :value-type string)
   :group 'richmd-mode)
 
 (defcustom richmd-mode-image-prefix "🖼 "
@@ -307,6 +377,7 @@ joined."
 (defvar-local richmd-mode--table-regions nil)
 (defvar-local richmd-mode--setext-regions nil)
 (defvar-local richmd-mode--link-defs nil)
+(defvar-local richmd-mode--alert-regions nil)
 (defvar-local richmd-mode--saved-line-spacing nil)
 (defvar-local richmd-mode--had-local-line-spacing nil)
 (defvar-local richmd-mode--body-cookie nil)
@@ -648,12 +719,63 @@ underline is `---'."
                                    (propertize (make-string 40 ?\s)
                                                'face 'richmd-mode-hr-face))))))
 
+(defun richmd-mode--in-alert-p (pos)
+  "Return non-nil if POS lies on a line already styled as a GitHub alert."
+  (cl-some (lambda (region)
+             (and (>= pos (car region)) (<= pos (cdr region))))
+           richmd-mode--alert-regions))
+
+(defun richmd-mode--fontify-alerts (beg end)
+  "Fontify GitHub Alerts (`> [!NOTE]' …) between BEG and END."
+  (save-excursion
+    (goto-char beg)
+    (while (re-search-forward
+            (concat "^[ \t]*\\(>\\)[ \t]+"
+                    "\\[!\\(NOTE\\|TIP\\|IMPORTANT\\|WARNING\\|CAUTION\\)\\]"
+                    "[ \t]*$")
+            end t)
+      (unless (richmd-mode--in-code-block-p (match-beginning 0))
+        (let* ((type (match-string-no-properties 2))
+               (title-face (intern (format "richmd-mode-alert-%s-face"
+                                           (downcase type))))
+               (bar-face (intern (format "richmd-mode-alert-%s-bar-face"
+                                         (downcase type))))
+               (title (or (cdr (assoc type richmd-mode-alert-titles)) type))
+               (bar-piece "  "))
+          (richmd-mode--make-overlay
+           (match-beginning 1) (match-end 1)
+           'face bar-face
+           'display (propertize bar-piece 'face bar-face))
+          (richmd-mode--make-overlay
+           (match-end 1) (match-end 0)
+           'face title-face
+           'display (propertize (concat " " title) 'face title-face))
+          (push (cons (line-beginning-position) (line-end-position))
+                richmd-mode--alert-regions)
+          (forward-line 1)
+          (while (and (< (point) end)
+                      (looking-at "^[ \t]*\\(>+\\)[ \t]?\\([^\n]*\\)$"))
+            (let ((depth (- (match-end 1) (match-beginning 1))))
+              (richmd-mode--make-overlay
+               (match-beginning 1) (match-end 1)
+               'face bar-face
+               'display
+               (propertize
+                (apply #'concat (cl-loop repeat depth collect bar-piece))
+                'face bar-face))
+              (richmd-mode--make-overlay (match-beginning 2) (match-end 2)
+                                         'face 'richmd-mode-quote-face)
+              (push (cons (line-beginning-position) (line-end-position))
+                    richmd-mode--alert-regions)
+              (forward-line 1))))))))
+
 (defun richmd-mode--fontify-quotes (beg end)
   "Fontify markdown blockquote lines between BEG and END."
   (save-excursion
     (goto-char beg)
     (while (re-search-forward "^\\(>+\\) ?\\([^\n]*\\)$" end t)
-      (unless (richmd-mode--in-code-block-p (match-beginning 0))
+      (unless (or (richmd-mode--in-code-block-p (match-beginning 0))
+                  (richmd-mode--in-alert-p (match-beginning 0)))
         (let ((depth (- (match-end 1) (match-beginning 1)))
               (bar-piece "  "))
           (richmd-mode--make-overlay
@@ -994,13 +1116,15 @@ prefix glyph, and the URL is exposed via `help-echo'."
     (remove-text-properties (point-min) (point-max)
                             '(line-spacing nil line-height nil wrap-prefix nil))
     (setq richmd-mode--setext-regions nil
-          richmd-mode--link-defs nil)
+          richmd-mode--link-defs nil
+          richmd-mode--alert-regions nil)
     (richmd-mode--scan-code-blocks (point-min) (point-max))
     (richmd-mode--scan-tables (point-min) (point-max))
     (richmd-mode--scan-link-defs (point-min) (point-max))
     (richmd-mode--fontify-setext-headings (point-min) (point-max))
     (richmd-mode--fontify-headings (point-min) (point-max))
     (richmd-mode--fontify-horizontal-rule (point-min) (point-max))
+    (richmd-mode--fontify-alerts (point-min) (point-max))
     (richmd-mode--fontify-quotes (point-min) (point-max))
     (richmd-mode--fontify-task-lists (point-min) (point-max))
     (richmd-mode--fontify-list-bullets (point-min) (point-max))
@@ -1114,7 +1238,8 @@ that provides one."
     (setq richmd-mode--code-block-regions nil
           richmd-mode--table-regions nil
           richmd-mode--setext-regions nil
-          richmd-mode--link-defs nil)
+          richmd-mode--link-defs nil
+          richmd-mode--alert-regions nil)
     (richmd-mode--exit-display)))
 
 (provide 'richmd-mode)
