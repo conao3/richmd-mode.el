@@ -30,6 +30,8 @@ Adjacent emphasis used to drop the second span: *one* *two* *three*.
 A link to the [project page](https://github.com/conao3/richmd-mode.el)
 and a bare reference: see [docs](https://example.com) for details.
 
+An inline image: ![project banner](https://raw.githubusercontent.com/conao3/files/master/blob/headers/png/richmd-mode.el.png)
+
 ## Blockquotes
 
 > A single-level blockquote.

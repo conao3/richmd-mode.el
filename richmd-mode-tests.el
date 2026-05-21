@@ -68,7 +68,19 @@
     (:equal '(richmd-mode-code-face)
             (richmd-mode-tests--faces-in "before `code` after\n"))
     (:equal '(richmd-mode-link-face)
-            (richmd-mode-tests--faces-in "see [docs](https://example.com)\n"))))
+            (richmd-mode-tests--faces-in "see [docs](https://example.com)\n"))
+    (:equal '(richmd-mode-link-face)
+            (richmd-mode-tests--faces-in "img ![alt](https://example.com/x.png)\n"))))
+
+(cort-deftest richmd-mode-image-not-link
+  '((:= 1
+        (with-temp-buffer
+          (insert "see ![alt](https://example.com/x.png)\n")
+          (richmd-mode 1)
+          (length (cl-remove-if-not
+                   (lambda (ov) (eq (overlay-get ov 'face)
+                                    'richmd-mode-link-face))
+                   (overlays-in (point-min) (point-max))))))))
 
 (cort-deftest richmd-mode-adjacent-italic
   '((:= 2

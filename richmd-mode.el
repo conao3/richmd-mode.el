@@ -202,6 +202,14 @@ line-spacing area of adjacent lines."
   :type 'string
   :group 'richmd-mode)
 
+(defcustom richmd-mode-image-prefix "🖼 "
+  "Glyph inserted before the alt text of an inline image.
+GitHub renders the image itself, which a buffer-only renderer
+cannot.  Showing a small icon before the alt text signals at a
+glance that the span is an image rather than a plain link."
+  :type 'string
+  :group 'richmd-mode)
+
 (defcustom richmd-mode-task-done "☑"
   "Display string used in place of a closed task list checkbox."
   :type 'string
@@ -822,12 +830,35 @@ the following line."
                                      'face 'default
                                      'line-height t))))))
 
+(defun richmd-mode--fontify-images (beg end)
+  "Fontify markdown inline images between BEG and END.
+GitHub renders `![alt](url)' as an inline image; in a terminal
+buffer the alt text is shown with the link face plus an image
+prefix glyph, and the URL is exposed via `help-echo'."
+  (save-excursion
+    (goto-char beg)
+    (while (re-search-forward "!\\[\\([^]\n]*\\)\\](\\([^)\n]+?\\))" end t)
+      (unless (richmd-mode--in-code-block-p (match-beginning 0))
+        (let ((omb (match-beginning 0))
+              (alt-beg (match-beginning 1))
+              (alt-end (match-end 1))
+              (xme (match-end 0))
+              (url (match-string-no-properties 2)))
+          (richmd-mode--make-inline
+           omb alt-beg alt-beg alt-end alt-end xme
+           'richmd-mode-link-face
+           'before-string (propertize richmd-mode-image-prefix
+                                      'face 'richmd-mode-link-face)
+           'help-echo url))))))
+
 (defun richmd-mode--fontify-links (beg end)
   "Fontify markdown inline links between BEG and END."
   (save-excursion
     (goto-char beg)
     (while (re-search-forward "\\[\\([^]\n]+?\\)\\](\\([^)\n]+?\\))" end t)
-      (unless (richmd-mode--in-code-block-p (match-beginning 0))
+      (unless (or (richmd-mode--in-code-block-p (match-beginning 0))
+                  (and (> (match-beginning 0) (point-min))
+                       (eq (char-before (match-beginning 0)) ?!)))
         (richmd-mode--make-inline (match-beginning 0) (match-beginning 1)
                                   (match-beginning 1) (match-end 1)
                                   (match-end 1) (match-end 0)
@@ -886,6 +917,7 @@ the following line."
     (richmd-mode--fontify-italic (point-min) (point-max))
     (richmd-mode--fontify-strikethrough (point-min) (point-max))
     (richmd-mode--fontify-inline-code (point-min) (point-max))
+    (richmd-mode--fontify-images (point-min) (point-max))
     (richmd-mode--fontify-links (point-min) (point-max))
     (richmd-mode--reflow-paragraphs (point-min) (point-max))
     (richmd-mode--neutralize-line-spacing (point-min) (point-max)))
