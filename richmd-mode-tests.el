@@ -50,6 +50,14 @@
     (:equal '(richmd-mode-heading-6-face)
             (richmd-mode-tests--faces-in "###### Hello\n"))))
 
+(cort-deftest richmd-mode-setext-headings
+  '((:equal '(richmd-mode-heading-1-face richmd-mode-heading-rule-face)
+            (richmd-mode-tests--faces-in "Hello\n=====\n"))
+    (:equal '(richmd-mode-heading-2-face richmd-mode-heading-rule-face)
+            (richmd-mode-tests--faces-in "Hello\n-----\n"))
+    (:equal '(richmd-mode-hr-face)
+            (richmd-mode-tests--faces-in "para\n\n---\n"))))
+
 (cort-deftest richmd-mode-inline-faces
   '((:equal '(richmd-mode-bold-face)
             (richmd-mode-tests--faces-in "before **bold** after\n"))

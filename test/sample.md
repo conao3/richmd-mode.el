@@ -14,6 +14,12 @@ spans to see the `org-appear`-style markup reveal.
 
 ###### Heading level 6
 
+Setext-style heading 1
+======================
+
+Setext-style heading 2
+----------------------
+
 ## Inline styles
 
 Plain body text rendered with a proportional face, then **bold**,

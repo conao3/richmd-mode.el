@@ -297,6 +297,7 @@ joined."
 (defvar-local richmd-mode--revealed-markers nil)
 (defvar-local richmd-mode--code-block-regions nil)
 (defvar-local richmd-mode--table-regions nil)
+(defvar-local richmd-mode--setext-regions nil)
 (defvar-local richmd-mode--saved-line-spacing nil)
 (defvar-local richmd-mode--had-local-line-spacing nil)
 (defvar-local richmd-mode--body-cookie nil)
@@ -583,12 +584,55 @@ already-rendered content untouched."
                               'display '(space :align-to right))
                              "\n"))))))))))))
 
+(defun richmd-mode--in-setext-p (pos)
+  "Return non-nil if POS is inside a setext heading underline span."
+  (cl-some (lambda (region)
+             (and (>= pos (car region)) (< pos (cdr region))))
+           richmd-mode--setext-regions))
+
+(defun richmd-mode--fontify-setext-headings (beg end)
+  "Fontify setext-style headings between BEG and END.
+A non-blank paragraph line followed by a line of `=' (level 1) or
+`-' (level 2) characters is rendered with the heading face; the
+underline characters are replaced by a thin rule.  Per CommonMark
+this takes precedence over horizontal-rule recognition when the
+underline is `---'."
+  (save-excursion
+    (goto-char beg)
+    (while (re-search-forward "^\\(=+\\|-+\\)[ \t]*$" end t)
+      (let* ((ubeg (match-beginning 1))
+             (uend (match-end 1))
+             (under (char-after ubeg))
+             (level (if (eq under ?=) 1 2)))
+        (when (> ubeg (point-min))
+          (save-excursion
+            (goto-char (1- ubeg))
+            (let ((tbeg (line-beginning-position))
+                  (tend (line-end-position)))
+              (when (and (richmd-mode--paragraph-line-p tbeg tend)
+                         (not (richmd-mode--in-code-block-p ubeg)))
+                (let ((face (richmd-mode--heading-face level)))
+                  (richmd-mode--make-overlay tbeg tend
+                                             'face face
+                                             'line-prefix nil
+                                             'wrap-prefix nil)
+                  (richmd-mode--make-overlay
+                   ubeg uend
+                   'face 'richmd-mode-heading-rule-face
+                   'display
+                   (propertize " "
+                               'face 'richmd-mode-heading-rule-face
+                               'display '(space :align-to right)))
+                  (push (cons ubeg uend)
+                        richmd-mode--setext-regions))))))))))
+
 (defun richmd-mode--fontify-horizontal-rule (beg end)
   "Fontify markdown horizontal rules between BEG and END."
   (save-excursion
     (goto-char beg)
     (while (re-search-forward "^\\(\\(?:[-*_] *\\)\\{3,\\}\\)[ \t]*$" end t)
-      (unless (richmd-mode--in-code-block-p (match-beginning 0))
+      (unless (or (richmd-mode--in-code-block-p (match-beginning 0))
+                  (richmd-mode--in-setext-p (match-beginning 1)))
         (richmd-mode--make-overlay (match-beginning 1) (match-end 1)
                                    'face 'richmd-mode-hr-face
                                    'display
@@ -828,8 +872,10 @@ the following line."
     (richmd-mode--clear-overlays (point-min) (point-max))
     (remove-text-properties (point-min) (point-max)
                             '(line-spacing nil line-height nil wrap-prefix nil))
+    (setq richmd-mode--setext-regions nil)
     (richmd-mode--scan-code-blocks (point-min) (point-max))
     (richmd-mode--scan-tables (point-min) (point-max))
+    (richmd-mode--fontify-setext-headings (point-min) (point-max))
     (richmd-mode--fontify-headings (point-min) (point-max))
     (richmd-mode--fontify-horizontal-rule (point-min) (point-max))
     (richmd-mode--fontify-quotes (point-min) (point-max))
@@ -940,7 +986,8 @@ that provides one."
       (remove-text-properties (point-min) (point-max)
                               '(line-spacing nil line-height nil wrap-prefix nil)))
     (setq richmd-mode--code-block-regions nil
-          richmd-mode--table-regions nil)
+          richmd-mode--table-regions nil
+          richmd-mode--setext-regions nil)
     (richmd-mode--exit-display)))
 
 (provide 'richmd-mode)
