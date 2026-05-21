@@ -110,6 +110,11 @@ Fenced block with a language tag:
   (message "| pipes | are | not | a | table | here |"))
 ```
 
+An indented code block uses a 4-space prefix instead of a fence:
+
+    (defun add (a b) (+ a b))
+    (add 3 4)
+
 ## Tables
 
 A left/right aligned table:

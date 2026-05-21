@@ -482,6 +482,57 @@ already-rendered content untouched."
                                        (propertize margin 'face 'richmd-mode-code-block-face))
             (richmd-mode--make-overlay body-end fence-end 'invisible 'richmd-mode)))))))
 
+(defun richmd-mode--scan-indented-code-blocks (beg end)
+  "Detect 4-space indented code blocks in BEG..END.
+A line starting with at least four spaces (or a tab) is treated as
+a code block when it follows a blank line (or the start of the
+buffer) and the most recent non-blank line is not a list item, so
+list continuation lines are not misclassified."
+  (save-excursion
+    (goto-char beg)
+    (while (< (point) end)
+      (cond
+       ((richmd-mode--in-code-block-p (point))
+        (forward-line 1))
+       ((and (bolp)
+             (looking-at "^\\(?:    \\|\t\\)[^\n]")
+             (or (= (point) (point-min))
+                 (save-excursion
+                   (forward-line -1)
+                   (looking-at "^[ \t]*$")))
+             (save-excursion
+               (forward-line -1)
+               (while (and (> (point) (point-min))
+                           (looking-at "^[ \t]*$"))
+                 (forward-line -1))
+               (or (looking-at "^[ \t]*$")
+                   (not (string-match-p
+                         "\\`[ \t]*\\(?:[-*+][ \t]\\|[0-9]+\\.[ \t]\\)"
+                         (buffer-substring-no-properties
+                          (line-beginning-position)
+                          (line-end-position)))))))
+        (let ((bbeg (line-beginning-position))
+              (block-end (line-beginning-position)))
+          (while (and (< (point) end)
+                      (or (looking-at "^\\(?:    \\|\t\\)")
+                          (and (looking-at "^[ \t]*$")
+                               (save-excursion
+                                 (forward-line 1)
+                                 (looking-at "^\\(?:    \\|\t\\)")))))
+            (forward-line 1)
+            (setq block-end (point)))
+          (push (cons bbeg block-end) richmd-mode--code-block-regions)
+          (richmd-mode--make-overlay
+           bbeg block-end
+           'face 'richmd-mode-code-block-face
+           'line-prefix
+           (propertize (make-string richmd-mode-code-block-margin ?\s)
+                       'face 'richmd-mode-code-block-face)
+           'wrap-prefix
+           (propertize (make-string richmd-mode-code-block-margin ?\s)
+                       'face 'richmd-mode-code-block-face))))
+       (t (forward-line 1))))))
+
 (defun richmd-mode--table-cells (line)
   "Split a Markdown table LINE into a list of trimmed cell strings."
   (let ((s (string-trim line)))
@@ -1151,6 +1202,7 @@ prefix glyph, and the URL is exposed via `help-echo'."
           richmd-mode--alert-regions nil)
     (richmd-mode--scan-code-blocks (point-min) (point-max))
     (richmd-mode--scan-tables (point-min) (point-max))
+    (richmd-mode--scan-indented-code-blocks (point-min) (point-max))
     (richmd-mode--scan-link-defs (point-min) (point-max))
     (richmd-mode--fontify-setext-headings (point-min) (point-max))
     (richmd-mode--fontify-headings (point-min) (point-max))

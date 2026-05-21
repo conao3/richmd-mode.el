@@ -142,7 +142,11 @@
 
 (cort-deftest richmd-mode-code-block-faces
   '((:equal '(richmd-mode-code-block-face)
-            (richmd-mode-tests--faces-in "```\nfoo\n```\n"))))
+            (richmd-mode-tests--faces-in "```\nfoo\n```\n"))
+    (:equal '(richmd-mode-code-block-face)
+            (richmd-mode-tests--faces-in "paragraph\n\n    code line\n    more code\n"))
+    (:equal '(richmd-mode-list-bullet-face)
+            (richmd-mode-tests--faces-in "- item\n    not code, list cont\n"))))
 
 (cort-deftest richmd-mode-list-bullet-display
   '((:equal (concat (make-string richmd-mode-list-bullet-indent ?\s)
