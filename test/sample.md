@@ -96,5 +96,3 @@ Name | Role
 ---- | ----
 Alice | Author
 Bob | Reviewer
-</content>
-</invoke>
