@@ -378,6 +378,7 @@ joined."
 
 (defvar-local richmd-mode--overlays nil)
 (defvar-local richmd-mode--enabled-visual-line nil)
+(defvar-local richmd-mode--enabled-cursor-intangible nil)
 (defvar-local richmd-mode--revealed-span nil)
 (defvar-local richmd-mode--revealed-markers nil)
 (defvar-local richmd-mode--code-block-regions nil)
@@ -713,7 +714,15 @@ list continuation lines are not misclassified."
                  'after-string
                  (propertize " "
                              'face 'richmd-mode-heading-rule-face
-                             'display '(space :align-to right)))))))))))
+                             'display '(space :align-to right)))
+                (let ((bl (1+ eol)))
+                  (when (and (< bl (point-max))
+                             (eq (char-after bl) ?\n))
+                    (put-text-property
+                     bl (1+ bl) 'cursor-intangible t)
+                    (put-text-property
+                     bl (1+ bl)
+                     'rear-nonsticky '(cursor-intangible))))))))))))
 
 (defun richmd-mode--in-setext-p (pos)
   "Return non-nil if POS is inside a setext heading underline span."
@@ -1186,7 +1195,8 @@ prefix glyph, and the URL is exposed via `help-echo'."
   (with-silent-modifications
     (richmd-mode--clear-overlays (point-min) (point-max))
     (remove-text-properties (point-min) (point-max)
-                            '(line-spacing nil line-height nil wrap-prefix nil))
+                            '(line-spacing nil line-height nil wrap-prefix nil
+                              cursor-intangible nil))
     (setq richmd-mode--setext-regions nil
           richmd-mode--link-defs nil
           richmd-mode--alert-regions nil)
@@ -1268,6 +1278,13 @@ that provides one."
              (not (bound-and-true-p visual-line-mode)))
     (visual-line-mode 1)
     (setq richmd-mode--enabled-visual-line t))
+  (unless (bound-and-true-p cursor-intangible-mode)
+    (cursor-intangible-mode 1)
+    (setq richmd-mode--enabled-cursor-intangible t))
+  (let ((win (get-buffer-window (current-buffer))))
+    (when win
+      (set-window-parameter
+       win 'cursor-intangible--last-point (point))))
   (richmd-mode--sync-code-family)
   (richmd-mode--sync-italic-family)
   (setq richmd-mode--body-cookie
@@ -1285,6 +1302,9 @@ that provides one."
   (when richmd-mode--enabled-visual-line
     (visual-line-mode -1)
     (setq richmd-mode--enabled-visual-line nil))
+  (when richmd-mode--enabled-cursor-intangible
+    (cursor-intangible-mode -1)
+    (setq richmd-mode--enabled-cursor-intangible nil))
   (setq richmd-mode--saved-line-spacing nil
         richmd-mode--had-local-line-spacing nil)
   (remove-from-invisibility-spec 'richmd-mode))
@@ -1308,7 +1328,8 @@ that provides one."
     (with-silent-modifications
       (richmd-mode--clear-overlays (point-min) (point-max))
       (remove-text-properties (point-min) (point-max)
-                              '(line-spacing nil line-height nil wrap-prefix nil)))
+                              '(line-spacing nil line-height nil wrap-prefix nil
+                              cursor-intangible nil)))
     (setq richmd-mode--code-block-regions nil
           richmd-mode--table-regions nil
           richmd-mode--setext-regions nil
