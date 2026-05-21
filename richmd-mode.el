@@ -52,15 +52,16 @@
   :group 'richmd)
 
 (defface richmd-mode-heading-rule-face
-  '((((background light)) :overline "#afb8c1")
-    (((background dark))  :overline "#6e7781"))
+  '((((background light)) :overline "#d1d9e0" :height 1.6)
+    (((background dark))  :overline "#3d444d" :height 1.6))
   "Face drawing the bottom rule under level-1 and level-2 headings.
 GitHub separates the heading from its rule with padding; the rule
 is rendered on the blank line that follows the heading (one
 buffer line, so it stays aligned under
 `display-line-numbers-mode') rather than as a glyph underline,
 which would collide with the descenders of the large heading
-font."
+font.  The `:height' multiplier inflates that blank line so the
+rule sits with the same vertical breathing room GitHub gives it."
   :group 'richmd)
 
 (defface richmd-mode-heading-3-face
@@ -106,17 +107,16 @@ italic-capable family when that font has no italic variant."
 
 (defface richmd-mode-code-face
   '((((background light)) :inherit fixed-pitch
-     :background "#eaeef2" :foreground "#1f2328" :height 0.85
-     :box (:line-width (-1 . -2) :color "#eaeef2" :style nil))
+     :background "#eaeef2" :foreground "#1f2328" :height 0.85)
     (((background dark))  :inherit fixed-pitch
-     :background "#343942" :foreground "#e6edf3" :height 0.85
-     :box (:line-width (-1 . -2) :color "#343942" :style nil)))
+     :background "#343942" :foreground "#e6edf3" :height 0.85))
   "Face for inline code.
 
 GitHub renders inline code at roughly 85% of the surrounding font
-size, which also shrinks the glyph cell vertically and therefore
-prevents the grey background from visually merging with the
-`line-spacing' area of adjacent lines."
+size on a tinted background with no border; the size drop also
+shrinks the glyph cell vertically and prevents the grey
+background from visually merging with the `line-spacing' area of
+adjacent lines."
   :group 'richmd)
 
 (defface richmd-mode-code-block-face
@@ -292,7 +292,7 @@ glance that the span is an image rather than a plain link."
   :type 'string
   :group 'richmd)
 
-(defcustom richmd-mode-line-spacing nil
+(defcustom richmd-mode-line-spacing 4
   "Extra blank space inserted below each line while `richmd-mode' is active.
 
 Bound to the buffer-local variable `line-spacing' on activation.
@@ -301,11 +301,11 @@ line.  A floating point number N adds N times the default frame
 line height of extra space.  Note that `line-spacing' only takes
 effect on graphic displays (see `display-graphic-p').
 
-Defaults to nil: Emacs applies `line-spacing' uniformly to every
-line in the buffer with no reliable per-line override, so any
-positive value would also pull the table rows apart and break the
-box-drawing grid.  GitHub renders tables as a tight connected
-grid, so a tight buffer matches the reference more faithfully."
+Defaults to 4 pixels, which gives the body the same breathing
+room GitHub renders Markdown with.  Tables are unaffected because
+each table is laid out as a single multi-line display string
+spanning one buffer line; the internal grid stays connected
+regardless of `line-spacing'."
   :type '(choice (const :tag "None" nil)
                  (integer :tag "Pixels")
                  (float :tag "Fraction"))
