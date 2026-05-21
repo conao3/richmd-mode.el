@@ -292,7 +292,7 @@ glance that the span is an image rather than a plain link."
   :type 'string
   :group 'richmd)
 
-(defcustom richmd-mode-line-spacing 4
+(defcustom richmd-mode-line-spacing nil
   "Extra blank space inserted below each line while `richmd-mode' is active.
 
 Bound to the buffer-local variable `line-spacing' on activation.
@@ -301,11 +301,12 @@ line.  A floating point number N adds N times the default frame
 line height of extra space.  Note that `line-spacing' only takes
 effect on graphic displays (see `display-graphic-p').
 
-Defaults to 4 pixels, which gives the body the same breathing
-room GitHub renders Markdown with.  Tables are unaffected because
-each table is laid out as a single multi-line display string
-spanning one buffer line; the internal grid stays connected
-regardless of `line-spacing'."
+Defaults to nil: the buffer-wide `line-spacing' is applied
+between every visual row including the internal rows of a
+multi-line table display string, which breaks the connected
+box-drawing grid.  Breathing room for body prose is instead
+delivered via `richmd-mode-line-height-scale', which inflates the
+newlines of regular lines without touching tables."
   :type '(choice (const :tag "None" nil)
                  (integer :tag "Pixels")
                  (float :tag "Fraction"))
@@ -993,7 +994,8 @@ the face attributes of the newline glyph terminating that line.
 By overlaying each newline with the `default' face we keep the
 buffer-wide `line-spacing' strip neutral, so an inline-code
 overlay's grey background can no longer bleed into the gap above
-the following line."
+the following line.  The `line-height' property is also set to t
+so per-line metrics ignore the newline's faces entirely."
   (save-excursion
     (goto-char beg)
     (while (search-forward "\n" end t)
