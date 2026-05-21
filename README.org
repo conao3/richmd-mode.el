@@ -91,6 +91,11 @@ User options:
   by indent depth.
 - ~richmd-mode-task-open~ / ~richmd-mode-task-done~ — glyphs used in
   place of ~[ ]~ and ~[x]~ in task lists.
+- ~richmd-mode-body-font-family~ — candidate sans-serif families
+  tried in order for body text; mirrors GitHub's
+  ~--fontStack-sansSerif~.
+- ~richmd-mode-code-font-family~ — candidate monospace families
+  for code; mirrors GitHub's ~--fontStack-monospace~.
 - ~richmd-mode-image-prefix~ — glyph inserted before image alt text.
 - ~richmd-mode-alert-titles~ — alist mapping alert types (~NOTE~,
   ~TIP~, ~IMPORTANT~, ~WARNING~, ~CAUTION~) to their display titles.

@@ -96,8 +96,8 @@ rule sits with the same vertical breathing room GitHub gives it."
   '((t :inherit variable-pitch :slant italic))
   "Face for italic text.
 Inherits `variable-pitch' so it matches the proportional body
-font; `richmd-mode--sync-italic-family' substitutes an
-italic-capable family when that font has no italic variant."
+font; `richmd-mode--apply-fonts' substitutes an italic-capable
+family when the resolved body font has no italic variant."
   :group 'richmd)
 
 (defface richmd-mode-strikethrough-face
@@ -311,6 +311,32 @@ regardless of `line-spacing'."
                  (float :tag "Fraction"))
   :group 'richmd)
 
+(defcustom richmd-mode-body-font-family
+  '("-apple-system" "BlinkMacSystemFont" "Segoe UI" "Noto Sans"
+    "Helvetica" "Arial" "DejaVu Sans" "Liberation Sans" "sans-serif")
+  "Candidate font families for body text, tried in order.
+
+Mirrors GitHub's `--fontStack-sansSerif' so a Markdown buffer
+rendered by `richmd-mode' picks up the same proportional font
+Mo (and github.com) renders with.  The first family that is
+actually installed wins; the search is performed once per
+`richmd-mode' activation and the result is applied as a
+buffer-local remap of `variable-pitch'."
+  :type '(repeat string)
+  :group 'richmd)
+
+(defcustom richmd-mode-code-font-family
+  '("ui-monospace" "SFMono-Regular" "SF Mono" "Menlo" "Consolas"
+    "Liberation Mono" "DejaVu Sans Mono" "monospace")
+  "Candidate font families for code, tried in order.
+
+Mirrors GitHub's `--fontStack-monospace'.  Applied as a
+buffer-local remap of `fixed-pitch' so inline code, fenced code
+blocks, and the table grid all share the same monospace family
+as Mo's rendering."
+  :type '(repeat string)
+  :group 'richmd)
+
 (defcustom richmd-mode-text-scale 1.0
   "Relative height multiplier for the whole rendered buffer.
 
@@ -375,6 +401,7 @@ and they are hidden once point leaves."
 (defvar-local richmd-mode--saved-line-spacing nil)
 (defvar-local richmd-mode--had-local-line-spacing nil)
 (defvar-local richmd-mode--body-cookie nil)
+(defvar-local richmd-mode--font-cookies nil)
 (defvar-local richmd-mode--refresh-timer nil)
 
 (defvar richmd-mode)
@@ -1205,32 +1232,39 @@ prefix glyph, and the URL is exposed via `help-echo'."
                                      (when richmd-mode
                                        (richmd-mode-fontify-buffer)))))))))
 
-(defun richmd-mode--sync-code-family ()
-  "Force code-related faces to use the `fixed-pitch' family explicitly.
-This protects them from a buffer-wide `default' face remap to a
-proportional family."
-  (let ((mono (face-attribute 'fixed-pitch :family nil 'default)))
-    (when (and mono (stringp mono))
-      (set-face-attribute 'richmd-mode-code-face nil :family mono)
-      (set-face-attribute 'richmd-mode-code-block-face nil :family mono)
-      (set-face-attribute 'richmd-mode-code-block-lang-face nil :family mono)
-      (set-face-attribute 'richmd-mode-hr-face nil :family mono))))
+(defun richmd-mode--first-available-font (families)
+  "Return the first installed font family from FAMILIES, or nil."
+  (cl-find-if (lambda (f)
+                (and (stringp f)
+                     (find-font (font-spec :family f))))
+              families))
 
-(defun richmd-mode--sync-italic-family ()
-  "Give `richmd-mode-italic-face' a family that actually has an italic.
-A proportional body font often ships without an italic variant,
-so `:slant italic' would render upright.  When the inherited
-family lacks an italic, substitute the first candidate family
-that provides one."
-  (let ((base (face-attribute 'variable-pitch :family nil 'default)))
-    (unless (and base (stringp base)
-                 (find-font (font-spec :family base :slant 'italic)))
+(defun richmd-mode--apply-fonts ()
+  "Remap `variable-pitch' and `fixed-pitch' to the resolved font families.
+Stores the resulting `face-remap-add-relative' cookies on
+`richmd-mode--font-cookies' so they can be undone in
+`richmd-mode--exit-display'."
+  (setq richmd-mode--font-cookies nil)
+  (let ((body (richmd-mode--first-available-font
+               richmd-mode-body-font-family))
+        (code (richmd-mode--first-available-font
+               richmd-mode-code-font-family)))
+    (when body
+      (push (face-remap-add-relative 'variable-pitch :family body)
+            richmd-mode--font-cookies))
+    (when code
+      (push (face-remap-add-relative 'fixed-pitch :family code)
+            richmd-mode--font-cookies))
+    (when (and body
+               (not (find-font (font-spec :family body :slant 'italic))))
       (let ((alt (cl-find-if
                   (lambda (f) (find-font (font-spec :family f :slant 'italic)))
                   '("Noto Sans" "DejaVu Sans" "Liberation Sans"
                     "Bitstream Vera Sans" "FreeSans"))))
         (when alt
-          (set-face-attribute 'richmd-mode-italic-face nil :family alt))))))
+          (push (face-remap-add-relative 'richmd-mode-italic-face
+                                         :family alt)
+                richmd-mode--font-cookies))))))
 
 (defun richmd-mode--enter-display ()
   "Apply buffer-local display settings for `richmd-mode'."
@@ -1249,8 +1283,7 @@ that provides one."
     (when win
       (set-window-parameter
        win 'cursor-intangible--last-point (point))))
-  (richmd-mode--sync-code-family)
-  (richmd-mode--sync-italic-family)
+  (richmd-mode--apply-fonts)
   (setq richmd-mode--body-cookie
         (face-remap-add-relative 'default 'richmd-mode-body-face
                                  :height richmd-mode-text-scale)))
@@ -1260,6 +1293,9 @@ that provides one."
   (when richmd-mode--body-cookie
     (face-remap-remove-relative richmd-mode--body-cookie)
     (setq richmd-mode--body-cookie nil))
+  (dolist (cookie richmd-mode--font-cookies)
+    (face-remap-remove-relative cookie))
+  (setq richmd-mode--font-cookies nil)
   (if richmd-mode--had-local-line-spacing
       (setq-local line-spacing richmd-mode--saved-line-spacing)
     (kill-local-variable 'line-spacing))
