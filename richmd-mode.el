@@ -1309,10 +1309,79 @@ that provides one."
         richmd-mode--had-local-line-spacing nil)
   (remove-from-invisibility-spec 'richmd-mode))
 
+(defun richmd-mode-end-of-line (&optional arg)
+  "Move point to the end of the reflowed paragraph line.
+
+When point sits inside a soft-wrapped paragraph and
+`richmd-mode-reflow-paragraphs' is on, intra-paragraph newlines
+are displayed as spaces; the visual paragraph extends across
+several buffer lines.  This command treats that whole paragraph
+as one logical line so \\[move-end-of-line] reaches the end of
+the last source line of the paragraph instead of stopping at the
+first soft newline.  Outside a paragraph behaves like
+`end-of-visual-line'.
+
+With a numeric prefix ARG, behave like the standard
+`move-end-of-line' invoked with that ARG."
+  (interactive "^p")
+  (if (and (not arg)
+           richmd-mode-reflow-paragraphs
+           (richmd-mode--paragraph-line-p
+            (line-beginning-position) (line-end-position)))
+      (progn
+        (end-of-line)
+        (while (and (not (eobp))
+                    (save-excursion
+                      (forward-line 1)
+                      (richmd-mode--paragraph-line-p
+                       (line-beginning-position) (line-end-position))))
+          (forward-line 1)
+          (end-of-line)))
+    (if (bound-and-true-p visual-line-mode)
+        (end-of-visual-line arg)
+      (move-end-of-line arg))))
+
+(defun richmd-mode-beginning-of-line (&optional arg)
+  "Move point to the start of the reflowed paragraph line.
+
+Symmetric counterpart of `richmd-mode-end-of-line': in a
+soft-wrapped paragraph treat the whole paragraph as one logical
+line and jump to its first source line.  Outside a paragraph
+behaves like `beginning-of-visual-line'."
+  (interactive "^p")
+  (if (and (not arg)
+           richmd-mode-reflow-paragraphs
+           (richmd-mode--paragraph-line-p
+            (line-beginning-position) (line-end-position)))
+      (progn
+        (beginning-of-line)
+        (while (and (not (bobp))
+                    (save-excursion
+                      (forward-line -1)
+                      (richmd-mode--paragraph-line-p
+                       (line-beginning-position) (line-end-position))))
+          (forward-line -1)
+          (beginning-of-line)))
+    (if (bound-and-true-p visual-line-mode)
+        (beginning-of-visual-line arg)
+      (move-beginning-of-line arg))))
+
+(defvar richmd-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map [remap move-end-of-line] #'richmd-mode-end-of-line)
+    (define-key map [remap end-of-visual-line] #'richmd-mode-end-of-line)
+    (define-key map [remap move-beginning-of-line]
+                #'richmd-mode-beginning-of-line)
+    (define-key map [remap beginning-of-visual-line]
+                #'richmd-mode-beginning-of-line)
+    map)
+  "Keymap for `richmd-mode'.")
+
 ;;;###autoload
 (define-minor-mode richmd-mode
   "Toggle rich rendering of Markdown buffers via overlays."
   :lighter " RichMd"
+  :keymap richmd-mode-map
   (if richmd-mode
       (progn
         (richmd-mode--enter-display)
