@@ -72,6 +72,11 @@
     (:equal '(richmd-mode-link-face)
             (richmd-mode-tests--faces-in "img ![alt](https://example.com/x.png)\n"))))
 
+(cort-deftest richmd-mode-footnotes
+  '((:equal '(richmd-mode-footnote-face)
+            (richmd-mode-tests--faces-in
+             "see[^1] this\n\n[^1]: a footnote\n"))))
+
 (cort-deftest richmd-mode-alerts
   '((:equal '(richmd-mode-alert-note-bar-face
               richmd-mode-alert-note-face

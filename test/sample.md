@@ -40,6 +40,11 @@ Reference-style links: see [the repo][repo] or the [docs][] for help.
 [repo]: https://github.com/conao3/richmd-mode.el
 [docs]: https://example.com/docs "Documentation"
 
+Footnotes: a claim that needs sourcing[^src] and another one[^2].
+
+[^src]: A primary source backing the claim.
+[^2]: Some additional context that lives at the bottom of the page.
+
 ## Blockquotes
 
 > A single-level blockquote.

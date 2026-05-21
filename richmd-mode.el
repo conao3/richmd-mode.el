@@ -144,6 +144,12 @@ line-spacing area of adjacent lines."
   "Face for blockquote text."
   :group 'richmd-mode)
 
+(defface richmd-mode-footnote-face
+  '((((background light)) :inherit variable-pitch :foreground "#0969da" :height 0.85)
+    (((background dark))  :inherit variable-pitch :foreground "#2f81f7" :height 0.85))
+  "Face for footnote references and definition markers."
+  :group 'richmd-mode)
+
 (defface richmd-mode-alert-note-face
   '((((background light)) :foreground "#0969da" :weight bold)
     (((background dark))  :foreground "#2f81f7" :weight bold))
@@ -1002,6 +1008,31 @@ would collide with task-list checkboxes and GitHub alerts."
              'richmd-mode-link-face
              'help-echo url)))))))
 
+(defun richmd-mode--fontify-footnotes (beg end)
+  "Fontify GFM footnotes between BEG and END.
+Definitions (`[^id]: …') replace the bracketed marker with `id:'
+in the footnote face; references (`[^id]') are shown as `^id'."
+  (save-excursion
+    (goto-char beg)
+    (while (re-search-forward "^\\[\\^\\([^]\n]+\\)\\]:[ \t]+" end t)
+      (unless (richmd-mode--in-code-block-p (match-beginning 0))
+        (richmd-mode--make-overlay
+         (match-beginning 0) (match-end 0)
+         'display (propertize (concat (match-string-no-properties 1) ": ")
+                              'face 'richmd-mode-footnote-face)))))
+  (save-excursion
+    (goto-char beg)
+    (while (re-search-forward "\\[\\^\\([^]\n]+\\)\\]" end t)
+      (unless (or (richmd-mode--in-code-block-p (match-beginning 0))
+                  (save-excursion
+                    (goto-char (match-beginning 0))
+                    (looking-back "^" (line-beginning-position))))
+        (richmd-mode--make-overlay
+         (match-beginning 0) (match-end 0)
+         'face 'richmd-mode-footnote-face
+         'display (propertize (concat "^" (match-string-no-properties 1))
+                              'face 'richmd-mode-footnote-face))))))
+
 (defun richmd-mode--fontify-autolinks (beg end)
   "Fontify GFM autolinks between BEG and END.
 Handles angle-bracketed URLs and emails (`<url>', `<addr@host>')
@@ -1136,6 +1167,7 @@ prefix glyph, and the URL is exposed via `help-echo'."
     (richmd-mode--fontify-images (point-min) (point-max))
     (richmd-mode--fontify-links (point-min) (point-max))
     (richmd-mode--fontify-reference-links (point-min) (point-max))
+    (richmd-mode--fontify-footnotes (point-min) (point-max))
     (richmd-mode--fontify-autolinks (point-min) (point-max))
     (richmd-mode--reflow-paragraphs (point-min) (point-max))
     (richmd-mode--neutralize-line-spacing (point-min) (point-max)))
