@@ -72,6 +72,16 @@
     (:equal '(richmd-mode-link-face)
             (richmd-mode-tests--faces-in "img ![alt](https://example.com/x.png)\n"))))
 
+(cort-deftest richmd-mode-autolink
+  '((:equal '(richmd-mode-link-face)
+            (richmd-mode-tests--faces-in "see <https://example.com>\n"))
+    (:equal '(richmd-mode-link-face)
+            (richmd-mode-tests--faces-in "mail <foo@example.com>\n"))
+    (:equal '(richmd-mode-link-face)
+            (richmd-mode-tests--faces-in "visit https://example.com today\n"))
+    (:equal '(richmd-mode-code-block-face)
+            (richmd-mode-tests--faces-in "```\nhttps://example.com\n```\n"))))
+
 (cort-deftest richmd-mode-image-not-link
   '((:= 1
         (with-temp-buffer

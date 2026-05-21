@@ -32,6 +32,9 @@ and a bare reference: see [docs](https://example.com) for details.
 
 An inline image: ![project banner](https://raw.githubusercontent.com/conao3/files/master/blob/headers/png/richmd-mode.el.png)
 
+Autolinks: <https://example.com> and bare URL https://example.org are
+both detected; an email <conao3@gmail.com> renders as a mailto link.
+
 ## Blockquotes
 
 > A single-level blockquote.

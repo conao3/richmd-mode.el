@@ -830,6 +830,46 @@ the following line."
                                      'face 'default
                                      'line-height t))))))
 
+(defun richmd-mode--fontify-autolinks (beg end)
+  "Fontify GFM autolinks between BEG and END.
+Handles angle-bracketed URLs and emails (`<url>', `<addr@host>')
+and bare http/https URLs in running text; trailing sentence
+punctuation is stripped from bare URLs to mirror GFM's extended
+autolink rules."
+  (save-excursion
+    (goto-char beg)
+    (while (re-search-forward
+            (concat "<\\(\\(?:https?\\|ftp\\|mailto\\):[^>\n[:space:]]+"
+                    "\\|[^>\n@[:space:]]+@[^>\n@[:space:]]+\\)>")
+            end t)
+      (unless (richmd-mode--in-code-block-p (match-beginning 0))
+        (richmd-mode--make-inline
+         (match-beginning 0) (match-beginning 1)
+         (match-beginning 1) (match-end 1)
+         (match-end 1) (match-end 0)
+         'richmd-mode-link-face
+         'help-echo (match-string-no-properties 1)))))
+  (save-excursion
+    (goto-char beg)
+    (while (re-search-forward "\\bhttps?://[^]<>[:space:])]+" end t)
+      (let* ((mbeg (match-beginning 0))
+             (mend (match-end 0))
+             (before (and (> mbeg (point-min)) (char-before mbeg)))
+             (face-at (get-char-property mbeg 'face)))
+        (unless (or (richmd-mode--in-code-block-p mbeg)
+                    (memq before '(?\( ?\[ ?> ?< ?\" ?')
+                          )
+                    (eq face-at 'richmd-mode-link-face)
+                    (and (listp face-at)
+                         (memq 'richmd-mode-link-face face-at)))
+          (while (and (> mend mbeg)
+                      (memq (char-before mend) '(?. ?, ?\; ?: ?! ?\?)))
+            (setq mend (1- mend)))
+          (richmd-mode--make-overlay
+           mbeg mend
+           'face 'richmd-mode-link-face
+           'help-echo (buffer-substring-no-properties mbeg mend)))))))
+
 (defun richmd-mode--fontify-images (beg end)
   "Fontify markdown inline images between BEG and END.
 GitHub renders `![alt](url)' as an inline image; in a terminal
@@ -919,6 +959,7 @@ prefix glyph, and the URL is exposed via `help-echo'."
     (richmd-mode--fontify-inline-code (point-min) (point-max))
     (richmd-mode--fontify-images (point-min) (point-max))
     (richmd-mode--fontify-links (point-min) (point-max))
+    (richmd-mode--fontify-autolinks (point-min) (point-max))
     (richmd-mode--reflow-paragraphs (point-min) (point-max))
     (richmd-mode--neutralize-line-spacing (point-min) (point-max)))
   (setq richmd-mode--revealed-span nil
