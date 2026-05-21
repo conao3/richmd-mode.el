@@ -72,6 +72,17 @@
     (:equal '(richmd-mode-link-face)
             (richmd-mode-tests--faces-in "img ![alt](https://example.com/x.png)\n"))))
 
+(cort-deftest richmd-mode-reference-link
+  '((:equal '(richmd-mode-link-face)
+            (richmd-mode-tests--faces-in
+             "see [repo][r] for source\n\n[r]: https://example.com\n"))
+    (:equal '(richmd-mode-link-face)
+            (richmd-mode-tests--faces-in
+             "the [docs][] are here\n\n[docs]: https://example.com\n"))
+    (:equal nil
+            (richmd-mode-tests--faces-in
+             "no def for [missing][nope] here\n"))))
+
 (cort-deftest richmd-mode-autolink
   '((:equal '(richmd-mode-link-face)
             (richmd-mode-tests--faces-in "see <https://example.com>\n"))

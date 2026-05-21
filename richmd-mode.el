@@ -306,6 +306,7 @@ joined."
 (defvar-local richmd-mode--code-block-regions nil)
 (defvar-local richmd-mode--table-regions nil)
 (defvar-local richmd-mode--setext-regions nil)
+(defvar-local richmd-mode--link-defs nil)
 (defvar-local richmd-mode--saved-line-spacing nil)
 (defvar-local richmd-mode--had-local-line-spacing nil)
 (defvar-local richmd-mode--body-cookie nil)
@@ -830,6 +831,55 @@ the following line."
                                      'face 'default
                                      'line-height t))))))
 
+(defun richmd-mode--scan-link-defs (beg end)
+  "Collect reference link definitions in BEG..END and hide their lines."
+  (setq richmd-mode--link-defs (make-hash-table :test 'equal))
+  (save-excursion
+    (goto-char beg)
+    (while (re-search-forward
+            (concat "^[ \t]*\\[\\([^]\n]+\\)\\]:[ \t]+"
+                    "\\([^ \t\n\"<>]+\\|<[^>\n]+>\\)"
+                    "\\(?:[ \t]+\"[^\"\n]*\"\\)?[ \t]*$")
+            end t)
+      (unless (richmd-mode--in-code-block-p (match-beginning 0))
+        (let ((id (downcase (string-trim (match-string-no-properties 1))))
+              (url (let ((u (match-string-no-properties 2)))
+                     (if (and (string-prefix-p "<" u)
+                              (string-suffix-p ">" u))
+                         (substring u 1 -1)
+                       u))))
+          (puthash id url richmd-mode--link-defs)
+          (richmd-mode--make-overlay
+           (line-beginning-position)
+           (min (1+ (line-end-position)) (point-max))
+           'invisible 'richmd-mode))))))
+
+(defun richmd-mode--fontify-reference-links (beg end)
+  "Fontify reference-style links between BEG and END.
+Handles full (`[text][id]') and collapsed (`[id][]') forms; the
+shortcut form (`[id]') is intentionally not supported because it
+would collide with task-list checkboxes and GitHub alerts."
+  (save-excursion
+    (goto-char beg)
+    (while (re-search-forward
+            "\\[\\([^]\n]+?\\)\\]\\[\\([^]\n]*\\)\\]"
+            end t)
+      (unless (or (richmd-mode--in-code-block-p (match-beginning 0))
+                  (and (> (match-beginning 0) (point-min))
+                       (eq (char-before (match-beginning 0)) ?!)))
+        (let* ((text (match-string-no-properties 1))
+               (id-raw (match-string-no-properties 2))
+               (id (downcase (if (string-empty-p id-raw) text id-raw)))
+               (url (and richmd-mode--link-defs
+                         (gethash id richmd-mode--link-defs))))
+          (when url
+            (richmd-mode--make-inline
+             (match-beginning 0) (match-beginning 1)
+             (match-beginning 1) (match-end 1)
+             (match-end 1) (match-end 0)
+             'richmd-mode-link-face
+             'help-echo url)))))))
+
 (defun richmd-mode--fontify-autolinks (beg end)
   "Fontify GFM autolinks between BEG and END.
 Handles angle-bracketed URLs and emails (`<url>', `<addr@host>')
@@ -943,9 +993,11 @@ prefix glyph, and the URL is exposed via `help-echo'."
     (richmd-mode--clear-overlays (point-min) (point-max))
     (remove-text-properties (point-min) (point-max)
                             '(line-spacing nil line-height nil wrap-prefix nil))
-    (setq richmd-mode--setext-regions nil)
+    (setq richmd-mode--setext-regions nil
+          richmd-mode--link-defs nil)
     (richmd-mode--scan-code-blocks (point-min) (point-max))
     (richmd-mode--scan-tables (point-min) (point-max))
+    (richmd-mode--scan-link-defs (point-min) (point-max))
     (richmd-mode--fontify-setext-headings (point-min) (point-max))
     (richmd-mode--fontify-headings (point-min) (point-max))
     (richmd-mode--fontify-horizontal-rule (point-min) (point-max))
@@ -959,6 +1011,7 @@ prefix glyph, and the URL is exposed via `help-echo'."
     (richmd-mode--fontify-inline-code (point-min) (point-max))
     (richmd-mode--fontify-images (point-min) (point-max))
     (richmd-mode--fontify-links (point-min) (point-max))
+    (richmd-mode--fontify-reference-links (point-min) (point-max))
     (richmd-mode--fontify-autolinks (point-min) (point-max))
     (richmd-mode--reflow-paragraphs (point-min) (point-max))
     (richmd-mode--neutralize-line-spacing (point-min) (point-max)))
@@ -1060,7 +1113,8 @@ that provides one."
                               '(line-spacing nil line-height nil wrap-prefix nil)))
     (setq richmd-mode--code-block-regions nil
           richmd-mode--table-regions nil
-          richmd-mode--setext-regions nil)
+          richmd-mode--setext-regions nil
+          richmd-mode--link-defs nil)
     (richmd-mode--exit-display)))
 
 (provide 'richmd-mode)
