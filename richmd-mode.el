@@ -332,9 +332,23 @@ buffer-local remap of `variable-pitch'."
   "Candidate font families for code, tried in order.
 
 Mirrors GitHub's `--fontStack-monospace'.  Applied as a
-buffer-local remap of `fixed-pitch' so inline code, fenced code
-blocks, and the table grid all share the same monospace family
-as Mo's rendering."
+buffer-local remap of `fixed-pitch' so inline code and fenced
+code blocks share the same monospace family as Mo's rendering."
+  :type '(repeat string)
+  :group 'richmd)
+
+(defcustom richmd-mode-table-font-family
+  '("DejaVu Sans Mono" "Noto Sans Mono" "JetBrains Mono"
+    "FreeMono" "monospace")
+  "Candidate font families for table box-drawing, tried in order.
+
+The table grid uses heavy box-drawing characters (`┏┃━╋' etc.)
+because their glyphs span the full cell height in well-formed
+monospace fonts and the resulting borders read as a continuous
+line.  Many monospace fonts (notably Liberation Mono) only ship
+the LIGHT box-drawing block, so a dedicated family stack is
+maintained for tables to keep the grid connected regardless of
+what the user picks for `richmd-mode-code-font-family'."
   :type '(repeat string)
   :group 'richmd)
 
@@ -584,7 +598,7 @@ list continuation lines are not misclassified."
 (defun richmd-mode--table-render-row (cells aligns widths cellface)
   "Render data CELLS with ALIGNS and WIDTHS, styled by CELLFACE."
   (let* ((pad (make-string richmd-mode-table-cell-padding ?\s))
-         (s (concat "│"
+         (s (concat "┃"
                     (mapconcat
                      (lambda (i)
                        (concat pad
@@ -593,11 +607,11 @@ list continuation lines are not misclassified."
                                                        (nth i aligns))
                                pad))
                      (number-sequence 0 (1- (length widths)))
-                     "│")
-                    "│")))
+                     "┃")
+                    "┃")))
     (put-text-property 0 (length s) 'face cellface s)
     (let ((i 0))
-      (while (setq i (string-search "│" s i))
+      (while (setq i (string-search "┃" s i))
         (put-text-property i (1+ i) 'face
                            (list 'richmd-mode-table-rule-face cellface) s)
         (setq i (1+ i))))
@@ -609,7 +623,7 @@ list continuation lines are not misclassified."
    (concat l
            (mapconcat
             (lambda (w)
-              (make-string (+ w (* 2 richmd-mode-table-cell-padding)) ?─))
+              (make-string (+ w (* 2 richmd-mode-table-cell-padding)) ?━))
             widths m)
            r)
    'face 'richmd-mode-table-rule-face))
@@ -670,7 +684,7 @@ list continuation lines are not misclassified."
                          collect
                          (cond
                           ((null cells)
-                           (richmd-mode--table-border widths "├" "┼" "┤"))
+                           (richmd-mode--table-border widths "┣" "╋" "┫"))
                           ((= i 0)
                            (richmd-mode--table-render-row
                             cells aligns widths
@@ -691,9 +705,9 @@ list continuation lines are not misclassified."
                    (mapconcat
                     #'identity
                     (append
-                     (list (richmd-mode--table-border widths "┌" "┬" "┐"))
+                     (list (richmd-mode--table-border widths "┏" "┳" "┓"))
                      parts
-                     (list (richmd-mode--table-border widths "└" "┴" "┘")))
+                     (list (richmd-mode--table-border widths "┗" "┻" "┛")))
                     "\n"))))
             (goto-char hend)))))))
 
@@ -1242,7 +1256,7 @@ prefix glyph, and the URL is exposed via `help-echo'."
               families))
 
 (defun richmd-mode--apply-fonts ()
-  "Remap `variable-pitch' and `fixed-pitch' to the resolved font families.
+  "Remap `variable-pitch' / `fixed-pitch' and table faces to chosen families.
 Stores the resulting `face-remap-add-relative' cookies on
 `richmd-mode--font-cookies' so they can be undone in
 `richmd-mode--exit-display'."
@@ -1250,13 +1264,22 @@ Stores the resulting `face-remap-add-relative' cookies on
   (let ((body (richmd-mode--first-available-font
                richmd-mode-body-font-family))
         (code (richmd-mode--first-available-font
-               richmd-mode-code-font-family)))
+               richmd-mode-code-font-family))
+        (tbl  (richmd-mode--first-available-font
+               richmd-mode-table-font-family)))
     (when body
       (push (face-remap-add-relative 'variable-pitch :family body)
             richmd-mode--font-cookies))
     (when code
       (push (face-remap-add-relative 'fixed-pitch :family code)
             richmd-mode--font-cookies))
+    (when tbl
+      (dolist (face '(richmd-mode-table-face
+                      richmd-mode-table-rule-face
+                      richmd-mode-table-header-face
+                      richmd-mode-table-row-face))
+        (push (face-remap-add-relative face :family tbl)
+              richmd-mode--font-cookies)))
     (when (and body
                (not (find-font (font-spec :family body :slant 'italic))))
       (let ((alt (cl-find-if

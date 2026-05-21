@@ -202,23 +202,23 @@
     (let (found)
       (dolist (ov (overlays-in (point-min) (point-max)))
         (let ((d (overlay-get ov 'display)))
-          (when (and (stringp d) (string-match-p "[┌│├└]" d))
+          (when (and (stringp d) (string-match-p "[┏┃┣┗]" d))
             (setq found d))))
       (and found (split-string found "\n")))))
 
 (cort-deftest richmd-mode-table-render
-  '((:equal '("┌─────────┬───────┐"
-              "│  Name   │  Age  │"
-              "├─────────┼───────┤"
-              "│  Alice  │  30   │"
-              "└─────────┴───────┘")
+  '((:equal '("┏━━━━━━━━━┳━━━━━━━┓"
+              "┃  Name   ┃  Age  ┃"
+              "┣━━━━━━━━━╋━━━━━━━┫"
+              "┃  Alice  ┃  30   ┃"
+              "┗━━━━━━━━━┻━━━━━━━┛")
             (richmd-mode-tests--table-displays
              "| Name | Age |\n| --- | --- |\n| Alice | 30 |\n"))
-    (:equal '("┌───────┐"
-              "│    n  │"
-              "├───────┤"
-              "│  100  │"
-              "└───────┘")
+    (:equal '("┏━━━━━━━┓"
+              "┃    n  ┃"
+              "┣━━━━━━━┫"
+              "┃  100  ┃"
+              "┗━━━━━━━┛")
             (richmd-mode-tests--table-displays
              "| n |\n| --: |\n| 100 |\n"))
     (:equal nil
