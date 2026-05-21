@@ -1368,6 +1368,8 @@ behaves like `beginning-of-visual-line'."
 
 (defvar richmd-mode-map
   (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "C-e") #'richmd-mode-end-of-line)
+    (define-key map (kbd "C-a") #'richmd-mode-beginning-of-line)
     (define-key map [remap move-end-of-line] #'richmd-mode-end-of-line)
     (define-key map [remap end-of-visual-line] #'richmd-mode-end-of-line)
     (define-key map [remap move-beginning-of-line]
