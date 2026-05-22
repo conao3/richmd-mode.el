@@ -783,12 +783,10 @@ first cell."
                                          (cl-incf cell-idx)
                                          (when (> raw-beg sb)
                                            (richmd-mode--make-overlay
-                                            sb raw-beg
-                                            'invisible 'richmd-mode))
+                                            sb raw-beg 'display ""))
                                          (when (< raw-end se)
                                            (richmd-mode--make-overlay
-                                            raw-end se
-                                            'invisible 'richmd-mode))
+                                            raw-end se 'display ""))
                                          (richmd-mode--make-overlay
                                           (max raw-beg sb) (min raw-end se)
                                           'face face
