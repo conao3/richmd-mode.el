@@ -707,6 +707,14 @@ first cell."
                        (body 0)
                        (pad (make-string richmd-mode-table-cell-padding ?\s)))
                   (push (cons rbeg rend) richmd-mode--table-regions)
+                  (save-excursion
+                    (goto-char rbeg)
+                    (while (re-search-forward "\n" rend t)
+                      (let ((nl (1- (point))))
+                        (richmd-mode--make-overlay
+                         nl (1+ nl)
+                         'line-height t
+                         'line-spacing 0))))
                   (cl-loop
                    for i from 0
                    for line in lines
