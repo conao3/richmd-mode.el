@@ -628,6 +628,33 @@ list continuation lines are not misclassified."
            r)
    'face 'richmd-mode-table-rule-face))
 
+(defun richmd-mode--table-row-segments (lbeg lend)
+  "Return cell/pipe segments of a non-delimiter pipe row LBEG..LEND.
+Each segment is a list (TYPE SBEG SEND) where TYPE is `lead' for
+leading whitespace, `pipe' for a single `|', or `cell' for the
+buffer text between two `|'.  Returned in left-to-right order so
+each segment can become its own overlay, letting hit-tests resolve
+clicks to individual cells instead of pinning them to the row's
+first cell."
+  (let (segs (cur lbeg))
+    (save-excursion
+      (goto-char lbeg)
+      (skip-chars-forward " \t" lend)
+      (when (> (point) lbeg)
+        (push (list 'lead lbeg (point)) segs)
+        (setq cur (point)))
+      (while (and (< cur lend) (eq (char-after cur) ?|))
+        (push (list 'pipe cur (1+ cur)) segs)
+        (setq cur (1+ cur))
+        (when (< cur lend)
+          (let ((next-pipe (save-excursion
+                             (goto-char cur)
+                             (and (search-forward "|" lend t)
+                                  (1- (point))))))
+            (push (list 'cell cur (or next-pipe lend)) segs)
+            (setq cur (or next-pipe lend))))))
+    (nreverse segs)))
+
 (defun richmd-mode--scan-tables (beg end)
   "Detect GFM pipe tables in BEG..END and render them with box borders."
   (setq richmd-mode--table-regions nil)
@@ -677,7 +704,8 @@ list continuation lines are not misclassified."
                 (let* ((rbeg (caar lines))
                        (rend (cdar (last lines)))
                        (last-idx (1- (length lines)))
-                       (body 0))
+                       (body 0)
+                       (pad (make-string richmd-mode-table-cell-padding ?\s)))
                   (push (cons rbeg rend) richmd-mode--table-regions)
                   (cl-loop
                    for i from 0
@@ -688,33 +716,73 @@ list continuation lines are not misclassified."
                           (lend (cdr line))
                           (is-first (= i 0))
                           (is-last (= i last-idx))
-                          (is-delim (null cells))
-                          (parts
-                           (cond
-                            (is-first
-                             (list (richmd-mode--table-border widths "┏" "┳" "┓")
-                                   (richmd-mode--table-render-row
-                                    cells aligns widths
-                                    'richmd-mode-table-header-face)))
-                            (is-delim
-                             (list (richmd-mode--table-border widths "┣" "╋" "┫")))
-                            (t
-                             (let ((face (if (cl-oddp body)
-                                             'richmd-mode-table-row-face
-                                           'richmd-mode-table-face)))
-                               (setq body (1+ body))
-                               (list (richmd-mode--table-render-row
-                                      cells aligns widths face)))))))
-                     (when is-last
-                       (setq parts (append
-                                    parts
-                                    (list (richmd-mode--table-border
-                                           widths "┗" "┻" "┛")))))
-                     (richmd-mode--make-overlay
-                      lbeg lend
-                      'face 'richmd-mode-table-face
-                      'display (mapconcat #'identity parts "\n"))))))
-            (goto-char hend)))))))
+                          (is-delim (null cells)))
+                     (cond
+                      (is-delim
+                       (richmd-mode--make-overlay
+                        lbeg lend
+                        'face 'richmd-mode-table-rule-face
+                        'display (richmd-mode--table-border
+                                  widths "┣" "╋" "┫")))
+                      (t
+                       (let* ((face (cond
+                                     (is-first 'richmd-mode-table-header-face)
+                                     ((cl-oddp body) 'richmd-mode-table-row-face)
+                                     (t 'richmd-mode-table-face)))
+                              (segs (richmd-mode--table-row-segments lbeg lend))
+                              (cell-idx 0)
+                              first-ov last-ov)
+                         (unless is-first (setq body (1+ body)))
+                         (dolist (seg segs)
+                           (pcase-let ((`(,type ,sb ,se) seg))
+                             (let ((ov
+                                    (pcase type
+                                      ('lead
+                                       (richmd-mode--make-overlay
+                                        sb se 'invisible 'richmd-mode))
+                                      ('pipe
+                                       (richmd-mode--make-overlay
+                                        sb se
+                                        'face (list 'richmd-mode-table-rule-face
+                                                    face)
+                                        'display
+                                        (propertize
+                                         "┃"
+                                         'face
+                                         (list 'richmd-mode-table-rule-face
+                                               face))))
+                                      ('cell
+                                       (let* ((raw (string-trim
+                                                    (buffer-substring-no-properties
+                                                     sb se)))
+                                              (w (nth cell-idx widths))
+                                              (a (nth cell-idx aligns))
+                                              (padded
+                                               (concat
+                                                pad
+                                                (richmd-mode--table-pad raw w a)
+                                                pad)))
+                                         (cl-incf cell-idx)
+                                         (richmd-mode--make-overlay
+                                          sb se
+                                          'face face
+                                          'display
+                                          (propertize padded 'face face)))))))
+                               (unless first-ov (setq first-ov ov))
+                               (setq last-ov ov))))
+                         (when (and is-first first-ov)
+                           (overlay-put
+                            first-ov 'before-string
+                            (concat (richmd-mode--table-border
+                                     widths "┏" "┳" "┓")
+                                    "\n")))
+                         (when (and is-last last-ov)
+                           (overlay-put
+                            last-ov 'after-string
+                            (concat "\n"
+                                    (richmd-mode--table-border
+                                     widths "┗" "┻" "┛"))))))))))))
+            (goto-char hend))))))
 
 (defun richmd-mode--fontify-headings (beg end)
   "Fontify markdown ATX headings between BEG and END."

@@ -27,6 +27,7 @@
 
 (require 'cl-lib)
 (require 'cort)
+(require 'subr-x)
 (require 'richmd-mode)
 
 (defun richmd-mode-tests--faces-in (buf-content)
@@ -195,34 +196,63 @@
                 (richmd-mode-tests--marker-invisibility))))))
 
 (defun richmd-mode-tests--table-displays (content)
-  "Return per-row display lines of the rendered table in CONTENT.
-Each buffer line of the table contributes one element whose value
-is the list of visual rows from that overlay's display string,
-ordered by buffer position."
+  "Reconstruct the visual rendering of the first table in CONTENT.
+Walks the per-cell overlays that `richmd-mode--scan-tables' lays
+down, concatenating each segment's `before-string', `display' and
+`after-string' in buffer order, then splits the result by newline
+so the test can assert against a list of visual rows."
   (with-temp-buffer
     (insert content)
     (richmd-mode 1)
-    (let (rows)
-      (dolist (ov (overlays-in (point-min) (point-max)))
-        (let ((d (overlay-get ov 'display)))
-          (when (and (stringp d) (string-match-p "[┏┃┣┗]" d))
-            (push (cons (overlay-start ov) (split-string d "\n")) rows))))
-      (mapcar #'cdr
-              (sort rows (lambda (a b) (< (car a) (car b))))))))
+    (let ((region (car richmd-mode--table-regions)))
+      (when region
+        (let* ((rbeg (car region))
+               (rend (cdr region))
+               (buckets (make-hash-table))
+               (sorted
+                (sort (cl-remove-if-not
+                       (lambda (o)
+                         (and (>= (overlay-start o) rbeg)
+                              (<= (overlay-end o) rend)
+                              (or (overlay-get o 'display)
+                                  (overlay-get o 'before-string)
+                                  (overlay-get o 'after-string))))
+                       (overlays-in rbeg rend))
+                      (lambda (a b)
+                        (or (< (overlay-start a) (overlay-start b))
+                            (and (= (overlay-start a) (overlay-start b))
+                                 (< (overlay-end a) (overlay-end b))))))))
+          (dolist (ov sorted)
+            (let ((ln (save-excursion
+                        (goto-char (overlay-start ov))
+                        (line-beginning-position))))
+              (push ov (gethash ln buckets))))
+          (let* ((keys (sort (hash-table-keys buckets) #'<))
+                 (lines
+                  (mapcar (lambda (k)
+                            (let ((ovs (nreverse (gethash k buckets)))
+                                  (s ""))
+                              (dolist (ov ovs)
+                                (dolist (p '(before-string display after-string))
+                                  (let ((v (overlay-get ov p)))
+                                    (when v (setq s (concat s v))))))
+                              s))
+                          keys)))
+            (split-string (mapconcat #'identity lines "\n") "\n")))))))
 
 (cort-deftest richmd-mode-table-render
-  '((:equal '(("┏━━━━━━━━━┳━━━━━━━┓"
-               "┃  Name   ┃  Age  ┃")
-              ("┣━━━━━━━━━╋━━━━━━━┫")
-              ("┃  Alice  ┃  30   ┃"
-               "┗━━━━━━━━━┻━━━━━━━┛"))
+  '((:equal '("┏━━━━━━━━━┳━━━━━━━┓"
+              "┃  Name   ┃  Age  ┃"
+              "┣━━━━━━━━━╋━━━━━━━┫"
+              "┃  Alice  ┃  30   ┃"
+              "┗━━━━━━━━━┻━━━━━━━┛")
             (richmd-mode-tests--table-displays
              "| Name | Age |\n| --- | --- |\n| Alice | 30 |\n"))
-    (:equal '(("┏━━━━━━━┓"
-               "┃    n  ┃")
-              ("┣━━━━━━━┫")
-              ("┃  100  ┃"
-               "┗━━━━━━━┛"))
+    (:equal '("┏━━━━━━━┓"
+              "┃    n  ┃"
+              "┣━━━━━━━┫"
+              "┃  100  ┃"
+              "┗━━━━━━━┛")
             (richmd-mode-tests--table-displays
              "| n |\n| --: |\n| 100 |\n"))
     (:equal nil
