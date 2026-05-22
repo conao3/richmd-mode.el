@@ -195,30 +195,34 @@
                 (richmd-mode-tests--marker-invisibility))))))
 
 (defun richmd-mode-tests--table-displays (content)
-  "Return the lines of the single table display string for CONTENT."
+  "Return per-row display lines of the rendered table in CONTENT.
+Each buffer line of the table contributes one element whose value
+is the list of visual rows from that overlay's display string,
+ordered by buffer position."
   (with-temp-buffer
     (insert content)
     (richmd-mode 1)
-    (let (found)
+    (let (rows)
       (dolist (ov (overlays-in (point-min) (point-max)))
         (let ((d (overlay-get ov 'display)))
           (when (and (stringp d) (string-match-p "[┏┃┣┗]" d))
-            (setq found d))))
-      (and found (split-string found "\n")))))
+            (push (cons (overlay-start ov) (split-string d "\n")) rows))))
+      (mapcar #'cdr
+              (sort rows (lambda (a b) (< (car a) (car b))))))))
 
 (cort-deftest richmd-mode-table-render
-  '((:equal '("┏━━━━━━━━━┳━━━━━━━┓"
-              "┃  Name   ┃  Age  ┃"
-              "┣━━━━━━━━━╋━━━━━━━┫"
-              "┃  Alice  ┃  30   ┃"
-              "┗━━━━━━━━━┻━━━━━━━┛")
+  '((:equal '(("┏━━━━━━━━━┳━━━━━━━┓"
+               "┃  Name   ┃  Age  ┃")
+              ("┣━━━━━━━━━╋━━━━━━━┫")
+              ("┃  Alice  ┃  30   ┃"
+               "┗━━━━━━━━━┻━━━━━━━┛"))
             (richmd-mode-tests--table-displays
              "| Name | Age |\n| --- | --- |\n| Alice | 30 |\n"))
-    (:equal '("┏━━━━━━━┓"
-              "┃    n  ┃"
-              "┣━━━━━━━┫"
-              "┃  100  ┃"
-              "┗━━━━━━━┛")
+    (:equal '(("┏━━━━━━━┓"
+               "┃    n  ┃")
+              ("┣━━━━━━━┫")
+              ("┃  100  ┃"
+               "┗━━━━━━━┛"))
             (richmd-mode-tests--table-displays
              "| n |\n| --: |\n| 100 |\n"))
     (:equal nil

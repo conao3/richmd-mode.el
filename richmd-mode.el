@@ -676,39 +676,44 @@ list continuation lines are not misclassified."
                                  (string-width (or (nth i cells) "")))))))
                 (let* ((rbeg (caar lines))
                        (rend (cdar (last lines)))
-                       (body 0)
-                       (parts
-                        (cl-loop
-                         for cells in rows
-                         for i from 0
-                         collect
-                         (cond
-                          ((null cells)
-                           (richmd-mode--table-border widths "┣" "╋" "┫"))
-                          ((= i 0)
-                           (richmd-mode--table-render-row
-                            cells aligns widths
-                            'richmd-mode-table-header-face))
-                          (t
-                           (prog1
-                               (richmd-mode--table-render-row
-                                cells aligns widths
-                                (if (cl-oddp body)
-                                    'richmd-mode-table-row-face
-                                  'richmd-mode-table-face))
-                             (setq body (1+ body))))))))
+                       (last-idx (1- (length lines)))
+                       (body 0))
                   (push (cons rbeg rend) richmd-mode--table-regions)
-                  (richmd-mode--make-overlay
-                   rbeg rend
-                   'face 'richmd-mode-table-face
-                   'display
-                   (mapconcat
-                    #'identity
-                    (append
-                     (list (richmd-mode--table-border widths "┏" "┳" "┓"))
-                     parts
-                     (list (richmd-mode--table-border widths "┗" "┻" "┛")))
-                    "\n"))))
+                  (cl-loop
+                   for i from 0
+                   for line in lines
+                   for cells in rows
+                   do
+                   (let* ((lbeg (car line))
+                          (lend (cdr line))
+                          (is-first (= i 0))
+                          (is-last (= i last-idx))
+                          (is-delim (null cells))
+                          (parts
+                           (cond
+                            (is-first
+                             (list (richmd-mode--table-border widths "┏" "┳" "┓")
+                                   (richmd-mode--table-render-row
+                                    cells aligns widths
+                                    'richmd-mode-table-header-face)))
+                            (is-delim
+                             (list (richmd-mode--table-border widths "┣" "╋" "┫")))
+                            (t
+                             (let ((face (if (cl-oddp body)
+                                             'richmd-mode-table-row-face
+                                           'richmd-mode-table-face)))
+                               (setq body (1+ body))
+                               (list (richmd-mode--table-render-row
+                                      cells aligns widths face)))))))
+                     (when is-last
+                       (setq parts (append
+                                    parts
+                                    (list (richmd-mode--table-border
+                                           widths "┗" "┻" "┛")))))
+                     (richmd-mode--make-overlay
+                      lbeg lend
+                      'face 'richmd-mode-table-face
+                      'display (mapconcat #'identity parts "\n"))))))
             (goto-char hend)))))))
 
 (defun richmd-mode--fontify-headings (beg end)
