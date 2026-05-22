@@ -752,22 +752,48 @@ first cell."
                                          (list 'richmd-mode-table-rule-face
                                                face))))
                                       ('cell
-                                       (let* ((raw (string-trim
-                                                    (buffer-substring-no-properties
-                                                     sb se)))
+                                       (let* ((raw-beg
+                                               (save-excursion
+                                                 (goto-char sb)
+                                                 (skip-chars-forward " \t" se)
+                                                 (point)))
+                                              (raw-end
+                                               (save-excursion
+                                                 (goto-char se)
+                                                 (skip-chars-backward " \t" sb)
+                                                 (point)))
+                                              (raw (buffer-substring-no-properties
+                                                    raw-beg raw-end))
                                               (w (nth cell-idx widths))
                                               (a (nth cell-idx aligns))
-                                              (padded
-                                               (concat
-                                                pad
-                                                (richmd-mode--table-pad raw w a)
-                                                pad)))
+                                              (gap (max 0 (- w (string-width raw))))
+                                              (lgap (pcase a
+                                                      ('right gap)
+                                                      ('center (/ gap 2))
+                                                      (_ 0)))
+                                              (rgap (- gap lgap))
+                                              (lpad (propertize
+                                                     (concat pad
+                                                             (make-string lgap ?\s))
+                                                     'face face))
+                                              (rpad (propertize
+                                                     (concat (make-string rgap ?\s)
+                                                             pad)
+                                                     'face face)))
                                          (cl-incf cell-idx)
+                                         (when (> raw-beg sb)
+                                           (richmd-mode--make-overlay
+                                            sb raw-beg
+                                            'invisible 'richmd-mode))
+                                         (when (< raw-end se)
+                                           (richmd-mode--make-overlay
+                                            raw-end se
+                                            'invisible 'richmd-mode))
                                          (richmd-mode--make-overlay
-                                          sb se
+                                          (max raw-beg sb) (min raw-end se)
                                           'face face
-                                          'display
-                                          (propertize padded 'face face)))))))
+                                          'before-string lpad
+                                          'after-string rpad))))))
                                (unless first-ov (setq first-ov ov))
                                (setq last-ov ov))))
                          (when (and is-first first-ov)

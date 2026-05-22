@@ -197,10 +197,12 @@
 
 (defun richmd-mode-tests--table-displays (content)
   "Reconstruct the visual rendering of the first table in CONTENT.
-Walks the per-cell overlays that `richmd-mode--scan-tables' lays
-down, concatenating each segment's `before-string', `display' and
-`after-string' in buffer order, then splits the result by newline
-so the test can assert against a list of visual rows."
+Walks the table region buffer-position by buffer-position, emitting
+each overlay's `before-string', then the overlay's `display' (or
+the raw buffer char when no display is set, or skipping the char
+when an `invisible' overlay covers it), then any `after-string'.
+The result is split by newline so the test can assert against a
+list of visual rows."
   (with-temp-buffer
     (insert content)
     (richmd-mode 1)
@@ -208,37 +210,31 @@ so the test can assert against a list of visual rows."
       (when region
         (let* ((rbeg (car region))
                (rend (cdr region))
-               (buckets (make-hash-table))
-               (sorted
-                (sort (cl-remove-if-not
-                       (lambda (o)
-                         (and (>= (overlay-start o) rbeg)
-                              (<= (overlay-end o) rend)
-                              (or (overlay-get o 'display)
-                                  (overlay-get o 'before-string)
-                                  (overlay-get o 'after-string))))
-                       (overlays-in rbeg rend))
-                      (lambda (a b)
-                        (or (< (overlay-start a) (overlay-start b))
-                            (and (= (overlay-start a) (overlay-start b))
-                                 (< (overlay-end a) (overlay-end b))))))))
-          (dolist (ov sorted)
-            (let ((ln (save-excursion
-                        (goto-char (overlay-start ov))
-                        (line-beginning-position))))
-              (push ov (gethash ln buckets))))
-          (let* ((keys (sort (hash-table-keys buckets) #'<))
-                 (lines
-                  (mapcar (lambda (k)
-                            (let ((ovs (nreverse (gethash k buckets)))
-                                  (s ""))
-                              (dolist (ov ovs)
-                                (dolist (p '(before-string display after-string))
-                                  (let ((v (overlay-get ov p)))
-                                    (when v (setq s (concat s v))))))
-                              s))
-                          keys)))
-            (split-string (mapconcat #'identity lines "\n") "\n")))))))
+               (parts "")
+               (pos rbeg))
+          (while (< pos rend)
+            (dolist (ov (overlays-at pos))
+              (when (and (= (overlay-start ov) pos)
+                         (overlay-get ov 'before-string))
+                (setq parts (concat parts (overlay-get ov 'before-string)))))
+            (let ((d-ov (cl-find-if (lambda (o) (overlay-get o 'display))
+                                    (overlays-at pos))))
+              (cond
+               (d-ov
+                (setq parts (concat parts (overlay-get d-ov 'display)))
+                (setq pos (overlay-end d-ov)))
+               ((cl-some (lambda (o)
+                           (eq (overlay-get o 'invisible) 'richmd-mode))
+                         (overlays-at pos))
+                (setq pos (1+ pos)))
+               (t
+                (setq parts (concat parts (char-to-string (char-after pos))))
+                (setq pos (1+ pos)))))
+            (dolist (ov (overlays-in (max (1- pos) rbeg) pos))
+              (when (and (= (overlay-end ov) pos)
+                         (overlay-get ov 'after-string))
+                (setq parts (concat parts (overlay-get ov 'after-string))))))
+          (split-string parts "\n"))))))
 
 (cort-deftest richmd-mode-table-render
   '((:equal '("┏━━━━━━━━━┳━━━━━━━┓"
